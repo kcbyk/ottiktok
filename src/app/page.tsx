@@ -7,27 +7,23 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+
 
   const handleDownload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url) return;
-
     setLoading(true);
     setError("");
     setResult(null);
-
     try {
       const res = await fetch("/api/download", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Bir hata oluştu");
-      
       setResult(data);
     } catch (err: any) {
       setError(err.message);
@@ -47,10 +43,185 @@ export default function Home() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem", alignItems: "center" }}>
-      
+
+      {/* ── Sağ Üst Menü Butonu ── */}
+      <button
+        id="menu-toggle-btn"
+        onClick={() => setMenuOpen(true)}
+        aria-label="Menüyü Aç"
+        style={{
+          position: "fixed",
+          top: "1.25rem",
+          right: "1.25rem",
+          zIndex: 1000,
+          width: "46px",
+          height: "46px",
+          borderRadius: "12px",
+          border: "1px solid rgba(255,255,255,0.12)",
+          background: "rgba(255,255,255,0.06)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+          transition: "all 0.2s ease",
+        }}
+      >
+        {/* Grid / Kutu ikonu */}
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+      </button>
+
+      {/* ── Karartma (Overlay) ── */}
+      <div
+        onClick={() => setMenuOpen(false)}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 1001,
+          background: "rgba(0,0,0,0.55)",
+          backdropFilter: "blur(3px)",
+          WebkitBackdropFilter: "blur(3px)",
+          opacity: menuOpen ? 1 : 0,
+          pointerEvents: menuOpen ? "all" : "none",
+          transition: "opacity 0.3s ease",
+        }}
+      />
+
+      {/* ── Sol Sidebar Drawer ── */}
+      <div
+        id="sidebar-drawer"
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          height: "100vh",
+          width: "300px",
+          zIndex: 1002,
+          background: "rgba(8,8,8,0.92)",
+          backdropFilter: "blur(30px)",
+          WebkitBackdropFilter: "blur(30px)",
+          borderRight: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "8px 0 40px rgba(0,0,0,0.6)",
+          transform: menuOpen ? "translateX(0)" : "translateX(-100%)",
+          transition: "transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* Sidebar Başlık */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "1.25rem 1.5rem",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+        }}>
+          <span style={{ fontWeight: 700, fontSize: "1.1rem", color: "#fe2c55", letterSpacing: "0.03em" }}>
+            Menü
+          </span>
+          <button
+            onClick={() => setMenuOpen(false)}
+            aria-label="Kapat"
+            style={{
+              width: "32px",
+              height: "32px",
+              borderRadius: "8px",
+              border: "1px solid rgba(255,255,255,0.1)",
+              background: "rgba(255,255,255,0.05)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Nav Linkleri */}
+        <nav style={{ flex: 1, padding: "1rem 0.75rem", display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+
+          {/* Instagram */}
+          <a
+            href="/instagram"
+            onClick={() => setMenuOpen(false)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "1rem",
+              padding: "0.85rem 1rem",
+              borderRadius: "10px",
+              textDecoration: "none",
+              color: "white",
+              background: "transparent",
+              transition: "background 0.2s ease",
+              cursor: "pointer",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          >
+            {/* Instagram Gradient İkon */}
+            <div style={{
+              width: "38px",
+              height: "38px",
+              borderRadius: "10px",
+              background: "linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>Instagram İndirici</div>
+              <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>Reels ve görseller</div>
+            </div>
+            {/* Ok ikonu */}
+            <svg style={{ marginLeft: "auto", opacity: 0.3 }} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </a>
+
+        </nav>
+      </div>
+
+      {/* Başlık */}
       <div style={{ textAlign: "center", marginTop: "2rem" }}>
+        {/* TikTok İkonu */}
+        <div style={{
+          width: "70px",
+          height: "70px",
+          borderRadius: "18px",
+          background: "#000000",
+          border: "1.5px solid rgba(255,255,255,0.15)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          margin: "0 auto 1.25rem",
+          boxShadow: "0 8px 30px rgba(254,44,85,0.3)",
+        }}>
+          {/* TikTok Nota İkonu */}
+          <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="white">
+            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.78a4.85 4.85 0 0 1-1.01-.09z"/>
+          </svg>
+        </div>
         <h1>TikTok İndirici</h1>
-        <p className="subtitle">Filigransız ve tamamen reklamsız video & ses indirin.</p>
+        <p className="subtitle">Filigransız ve tamamen reklamsız video &amp; ses indirin.</p>
       </div>
 
       <div className="glass-panel" style={{ width: "100%", maxWidth: "650px" }}>
@@ -73,7 +244,7 @@ export default function Home() {
       </div>
 
       {error && (
-        <div className="glass-panel" style={{ width: "100%", maxWidth: "650px", border: "1px solid #ef4444", background: "rgba(239, 68, 68, 0.1)", padding: "1rem 2rem" }}>
+        <div className="glass-panel" style={{ width: "100%", maxWidth: "650px", border: "1px solid #ef4444", background: "rgba(239,68,68,0.1)", padding: "1rem 2rem" }}>
           <p style={{ color: "#ef4444", textAlign: "center", fontWeight: "600" }}>{error}</p>
         </div>
       )}
@@ -87,20 +258,18 @@ export default function Home() {
             <div style={{ flex: 1, minWidth: "250px" }}>
               <h3 style={{ marginBottom: "0.5rem", fontSize: "1.2rem" }}>{result.author || "TikTok Kullanıcısı"}</h3>
               <p style={{ opacity: 0.8, fontSize: "0.95rem", marginBottom: "1.5rem", lineHeight: "1.4" }}>{result.title}</p>
-              
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 {result.play && (
                   <a href={`/api/force-download?url=${encodeURIComponent(result.play)}&filename=tiktok_video.mp4`} className="btn" style={{ textDecoration: "none" }}>
                     Filigransız İndir (MP4)
                   </a>
                 )}
-                
                 {result.images && result.images.length > 0 && (
                   <div style={{ marginTop: "0.5rem", marginBottom: "0.5rem" }}>
                     <h4 style={{ marginBottom: "1rem", fontSize: "1rem" }}>Fotoğraflar ({result.images.length})</h4>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: "1rem" }}>
                       {result.images.map((img: string, idx: number) => (
-                        <div key={idx} style={{ position: "relative", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                        <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                           <img src={img} alt={`Foto ${idx + 1}`} style={{ width: "100%", height: "160px", objectFit: "cover", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }} />
                           <a href={`/api/force-download?url=${encodeURIComponent(img)}&filename=tiktok_photo_${idx + 1}.jpeg`} className="btn" style={{ padding: "0.5rem", fontSize: "0.85rem", width: "100%" }}>
                             İndir
@@ -110,7 +279,6 @@ export default function Home() {
                     </div>
                   </div>
                 )}
-
                 {result.music && (
                   <a href={`/api/force-download?url=${encodeURIComponent(result.music)}&filename=tiktok_audio.mp3`} className="btn btn-secondary" style={{ textDecoration: "none" }}>
                     Sesi İndir (MP3)
@@ -137,7 +305,7 @@ export default function Home() {
               <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fe2c55" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 8px rgba(254,44,85,0.4))" }}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
             </div>
             <h3 style={{ fontSize: "1.1rem", marginBottom: "0.5rem" }}>Linki kopyalayın</h3>
-            <p style={{ opacity: 0.8, fontSize: "0.9rem" }}>"Paylaş" butonuna dokunun ve "Bağlantıyı Kopyala"yı seçin.</p>
+            <p style={{ opacity: 0.8, fontSize: "0.9rem" }}>&quot;Paylaş&quot; butonuna dokunun ve &quot;Bağlantıyı Kopyala&quot;yı seçin.</p>
           </div>
           <div>
             <div style={{ display: "flex", justifyContent: "center", marginBottom: "1rem" }}>
@@ -148,7 +316,7 @@ export default function Home() {
           </div>
         </div>
       </div>
-      
+
     </div>
   );
 }
