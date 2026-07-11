@@ -31,6 +31,14 @@ function PIcon({ size = 20 }: { size?: number }) {
   );
 }
 
+function XIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="white">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+
 export default function Sidebar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
@@ -63,6 +71,15 @@ export default function Sidebar() {
       border: "none",
       shadow: "rgba(230,0,35,0.25)",
       icon: <PIcon size={20} />
+    },
+    {
+      name: "Twitter/X İndirici",
+      desc: "Tweet video ve GIF'leri",
+      href: "/twitter",
+      color: "#000000",
+      border: "1px solid rgba(255,255,255,0.15)",
+      shadow: "rgba(29,161,242,0.25)",
+      icon: <XIcon size={18} />
     }
   ];
 

@@ -29,6 +29,14 @@ function PIcon({ size = 32 }: { size?: number }) {
   );
 }
 
+function XIcon({ size = 32 }: { size?: number }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="white">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+
 export default function Home() {
   const cards = [
     {
@@ -60,6 +68,16 @@ export default function Home() {
       shadow: "rgba(230,0,35,0.3)",
       glow: "#E60023",
       icon: <PIcon size={34} />
+    },
+    {
+      name: "Twitter/X",
+      desc: "Tweet'lerdeki yüksek çözünürlüklü videoları ve GIF'leri indirme",
+      href: "/twitter",
+      color: "#000000",
+      border: "1.5px solid rgba(255,255,255,0.15)",
+      shadow: "rgba(29,161,242,0.3)",
+      glow: "#1DA1F2",
+      icon: <XIcon size={32} />
     }
   ];
 
