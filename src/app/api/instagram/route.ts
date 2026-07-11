@@ -2,15 +2,8 @@ import { NextResponse } from 'next/server';
 
 const RAPIDAPI_HOST = 'instagram-reels-downloader-api.p.rapidapi.com';
 
-// Her key'in aylık limiti: ~100 istek (ücretsiz plan)
-// Toplam: 5 x 100 = 500 istek/ay
-const API_KEYS = [
-  'cb858c97a3msh3798faa4195f2c4p1ce356jsnfed9edfcad6f', // Key 1
-  'a25458b35dmshff7650f186959bcp12b071jsn8408bc851eb2', // Key 2
-  'adc4b7af04mshadb5aab86d5eff7p1946e8jsn61fbc4deba81', // Key 3
-  '550292b6c2msh6f03553b10bc495p15d293jsn1a8ef5f8e47f', // Key 4
-  'f890c11bc2msh5d052433c7ad0d5p15925djsn5a5f8b7a00a3', // Key 5
-];
+// API anahtarlarını Vercel/yerel ortam değişkenlerinden güvenli şekilde çekiyoruz
+const API_KEYS = process.env.RAPIDAPI_KEYS ? process.env.RAPIDAPI_KEYS.split(',') : [];
 
 async function fetchInstagram(url: string, apiKey: string) {
   const apiUrl = `https://${RAPIDAPI_HOST}/download?url=${encodeURIComponent(url)}`;
@@ -41,6 +34,10 @@ export async function POST(request: Request) {
 
     if (!url.includes('instagram.com')) {
       return NextResponse.json({ error: 'Lütfen geçerli bir Instagram linki girin.' }, { status: 400 });
+    }
+
+    if (API_KEYS.length === 0) {
+      return NextResponse.json({ error: 'Instagram indirici API anahtarları yapılandırılmamış.' }, { status: 503 });
     }
 
     // Tüm key'leri sırayla dene

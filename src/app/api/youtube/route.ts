@@ -2,19 +2,10 @@ import { NextResponse } from 'next/server';
 
 // ── ytstream: video formatları (hızlı, anında) ──
 const YTSTREAM_HOST = 'ytstream-download-youtube-videos.p.rapidapi.com';
-const YTSTREAM_KEYS = [
-  'cb858c97a3msh3798faa4195f2c4p1ce356jsnfed9edfcad6f', // Key 1
-  'adc4b7af04mshadb5aab86d5eff7p1946e8jsn61fbc4deba81', // Key 2
-  '550292b6c2msh6f03553b10bc495p15d293jsn1a8ef5f8e47f', // Key 3
-  'a25458b35dmshff7650f186959bcp12b071jsn8408bc851eb2', // Key 4
-  'f890c11bc2msh5d052433c7ad0d5p15925djsn5a5f8b7a00a3', // Key 5
-];
-
-// ── youtube-mp36: kaliteli MP3 (hazır link, anında) ──
+// API anahtarlarını ortam değişkenlerinden güvenli şekilde çekiyoruz
+const YTSTREAM_KEYS = process.env.RAPIDAPI_KEYS ? process.env.RAPIDAPI_KEYS.split(',') : [];
+const MP36_KEYS = YTSTREAM_KEYS.length > 4 ? [YTSTREAM_KEYS[4]] : (YTSTREAM_KEYS.length > 0 ? [YTSTREAM_KEYS[0]] : []);
 const MP36_HOST = 'youtube-mp36.p.rapidapi.com';
-const MP36_KEYS = [
-  'f890c11bc2msh5d052433c7ad0d5p15925djsn5a5f8b7a00a3', // Key 1
-];
 
 function extractVideoId(url: string): string | null {
   const watchMatch = url.match(/[?&]v=([^&#]{11})/);
