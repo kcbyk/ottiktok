@@ -64,16 +64,55 @@ export async function POST(request: Request) {
 
     const videoData = data.data;
 
-    const videoMedia = videoData.medias?.find((m: any) => m.type === 'video');
-    const audioMedia = videoData.medias?.find((m: any) => m.type === 'audio');
+    // Video tespiti için esnek filtreleme
+    const videoMedia = videoData.medias?.find((m: any) => 
+      m.type?.toLowerCase() === 'video' || 
+      m.extension?.toLowerCase() === 'mp4' ||
+      m.url?.includes('.mp4') ||
+      m.url?.includes('video')
+    );
+
+    // Ses tespiti
+    const audioMedia = videoData.medias?.find((m: any) => 
+      m.type?.toLowerCase() === 'audio' || 
+      m.extension?.toLowerCase() === 'mp3' || 
+      m.extension?.toLowerCase() === 'm4a' ||
+      m.url?.includes('.mp3') ||
+      m.url?.includes('.m4a')
+    );
+    
+    // Görsel/Fotoğraf tespiti
+    const images = videoData.medias
+      ?.filter((m: any) => 
+        m.type?.toLowerCase() === 'image' || 
+        m.type?.toLowerCase() === 'photo' ||
+        m.extension?.toLowerCase() === 'jpg' ||
+        m.extension?.toLowerCase() === 'jpeg' ||
+        m.extension?.toLowerCase() === 'png' ||
+        m.url?.includes('.jpg') ||
+        m.url?.includes('.jpeg') ||
+        m.url?.includes('.png')
+      )
+      ?.map((m: any) => m.url) || [];
+
+    // Fallback: Eğer play url bulunamadıysa ama alternatif alanlarda varsa al
+    let playUrl = videoMedia?.url || videoData.video_url || videoData.download_url || videoData.video || null;
+    
+    // Fallback 2: Eğer playUrl hala yoksa ve en az 1 tane audio olmayan medya varsa onu kullan
+    if (!playUrl && videoData.medias && videoData.medias.length > 0) {
+      const firstNonAudio = videoData.medias.find((m: any) => m.type !== 'audio' && m.url);
+      if (firstNonAudio) {
+        playUrl = firstNonAudio.url;
+      }
+    }
 
     return NextResponse.json({
       author: videoData.author || '',
       title: videoData.title || 'Instagram Gönderisi',
       cover: videoData.thumbnail || null,
-      play: videoMedia?.url || null,
+      play: playUrl,
       music: audioMedia?.url || null,
-      images: null,
+      images: images.length > 0 ? images : null,
     });
   } catch (error) {
     console.error('Instagram API Hatası:', error);
