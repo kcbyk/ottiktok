@@ -161,3 +161,13 @@ h1 {
   background: rgba(255, 255, 255, 0.2);
   box-shadow: none;
 }
+
+/* Pinterest pin grid overlay */
+.pin-overlay {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.pin-overlay:hover {
+  opacity: 1 !important;
+}

@@ -40,6 +40,23 @@ export default function InstagramPage() {
     }
   };
 
+  const openPlatform = () => {
+    const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+    const isMobile = /android|iphone|ipad|ipod/i.test(userAgent);
+    
+    if (isMobile) {
+      const start = Date.now();
+      window.location.href = "instagram://";
+      setTimeout(() => {
+        if (Date.now() - start < 2000) {
+          window.location.href = "https://www.instagram.com/";
+        }
+      }, 1000);
+    } else {
+      window.open("https://www.instagram.com/", "_blank");
+    }
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem", alignItems: "center" }}>
 
@@ -64,17 +81,31 @@ export default function InstagramPage() {
       {/* Başlık */}
       <div style={{ textAlign: "center" }}>
         {/* Instagram Gradient İkon */}
-        <div style={{
-          width: "70px",
-          height: "70px",
-          borderRadius: "18px",
-          background: "linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          margin: "0 auto 1.25rem",
-          boxShadow: "0 8px 30px rgba(220,39,67,0.35)",
-        }}>
+        <div 
+          onClick={openPlatform}
+          style={{
+            width: "70px",
+            height: "70px",
+            borderRadius: "18px",
+            background: "linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto 1.25rem",
+            boxShadow: "0 8px 30px rgba(220,39,67,0.35)",
+            cursor: "pointer",
+            transition: "transform 0.2s ease, box-shadow 0.2s ease",
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.transform = "scale(1.08)";
+            e.currentTarget.style.boxShadow = "0 12px 35px rgba(220,39,67,0.5)";
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.transform = "scale(1)";
+            e.currentTarget.style.boxShadow = "0 8px 30px rgba(220,39,67,0.35)";
+          }}
+          title="Instagram Uygulamasını/Sanal Sayfasını Aç"
+        >
           <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
             <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
