@@ -57,7 +57,7 @@ export default function Home() {
       border: "none",
       shadow: "rgba(220,39,67,0.3)",
       glow: "#e1306c",
-      icon: <IIcon size={32} strokeWidth={2} />
+      icon: <IIcon size={32} />
     },
     {
       name: "Pinterest",
