@@ -41,6 +41,7 @@ function XIcon({ size = 18 }: { size?: number }) {
 
 export default function Sidebar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPage, setMenuPage] = useState(1); // 1. sayfa veya 2. sayfa
   const pathname = usePathname();
 
   // Menü öğeleri listesi (TikTok ilk sırada)
@@ -186,62 +187,161 @@ export default function Sidebar() {
           </button>
         </div>
 
-        {/* Nav Linkleri */}
-        <nav style={{ flex: 1, padding: "1.25rem 0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          {menuItems.map((item, idx) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={idx}
-                href={item.href}
-                onClick={() => setMenuOpen(false)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "1rem",
-                  padding: "0.85rem 1rem",
-                  borderRadius: "10px",
-                  textDecoration: "none",
-                  color: "white",
-                  background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
-                  border: isActive ? "1px solid rgba(255,255,255,0.1)" : "1px solid transparent",
-                  transition: "background 0.2s ease, border-color 0.2s ease",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={e => {
-                  if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-                }}
-                onMouseLeave={e => {
-                  if (!isActive) e.currentTarget.style.background = "transparent";
-                }}
-              >
-                {/* Platform İkon Yuvarlağı */}
-                <div style={{
-                  width: "38px",
-                  height: "38px",
-                  borderRadius: "10px",
-                  background: item.color,
-                  border: item.border,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                  boxShadow: `0 4px 12px ${item.shadow}`,
-                }}>
-                  {item.icon}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: "0.92rem" }}>{item.name}</div>
-                  <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)", marginTop: "2px" }}>{item.desc}</div>
-                </div>
-                {/* Ok ikonu */}
-                <svg style={{ marginLeft: "auto", opacity: 0.35 }} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 18 15 12 9 6"/>
+        {/* ── Kullanıcı İsteği: Sekme Seçimi (Tüm İndirici Yazısının Altı) ── */}
+        <div style={{
+          display: "flex",
+          gap: "0.35rem",
+          padding: "0.6rem 1rem",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+          background: "rgba(255,255,255,0.01)"
+        }}>
+          <button
+            onClick={() => setMenuPage(1)}
+            style={{
+              flex: 1,
+              padding: "0.55rem",
+              borderRadius: "8px",
+              border: "none",
+              background: menuPage === 1 ? "rgba(255,255,255,0.08)" : "transparent",
+              color: menuPage === 1 ? "white" : "rgba(255,255,255,0.45)",
+              fontWeight: 600,
+              fontSize: "0.82rem",
+              cursor: "pointer",
+              transition: "all 0.2s ease"
+            }}
+          >
+            Platformlar
+          </button>
+          <button
+            onClick={() => setMenuPage(2)}
+            style={{
+              flex: 1,
+              padding: "0.55rem",
+              borderRadius: "8px",
+              border: "none",
+              background: menuPage === 2 ? "rgba(255,255,255,0.08)" : "transparent",
+              color: menuPage === 2 ? "white" : "rgba(255,255,255,0.45)",
+              fontWeight: 600,
+              fontSize: "0.82rem",
+              cursor: "pointer",
+              transition: "all 0.2s ease"
+            }}
+          >
+            Daha Fazlası
+          </button>
+        </div>
+
+        {/* ── Nav Slider (Yatay Sayfa Geçişli Alan) ── */}
+        <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+          <div style={{
+            display: "flex",
+            width: "200%",
+            height: "100%",
+            transform: menuPage === 1 ? "translateX(0)" : "translateX(-50%)",
+            transition: "transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)"
+          }}>
+            
+            {/* Sayfa 1: Platform İndiriciler */}
+            <nav style={{
+              width: "50%",
+              padding: "1.25rem 0.75rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.5rem",
+              boxSizing: "border-box"
+            }}>
+              {menuItems.map((item, idx) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={idx}
+                    href={item.href}
+                    onClick={() => setMenuOpen(false)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "1rem",
+                      padding: "0.85rem 1rem",
+                      borderRadius: "10px",
+                      textDecoration: "none",
+                      color: "white",
+                      background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
+                      border: isActive ? "1px solid rgba(255,255,255,0.1)" : "1px solid transparent",
+                      transition: "background 0.2s ease, border-color 0.2s ease",
+                      cursor: "pointer",
+                    }}
+                    onMouseEnter={e => {
+                      if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                    }}
+                    onMouseLeave={e => {
+                      if (!isActive) e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    {/* Platform İkon Yuvarlağı */}
+                    <div style={{
+                      width: "38px",
+                      height: "38px",
+                      borderRadius: "10px",
+                      background: item.color,
+                      border: item.border,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      boxShadow: `0 4px 12px ${item.shadow}`,
+                    }}>
+                      {item.icon}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: "0.92rem" }}>{item.name}</div>
+                      <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)", marginTop: "2px" }}>{item.desc}</div>
+                    </div>
+                    {/* Ok ikonu */}
+                    <svg style={{ marginLeft: "auto", opacity: 0.35 }} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* Sayfa 2: Dahası (Boşaltılmış / İleride Eklenecek Özellikler İçin) */}
+            <div style={{
+              width: "50%",
+              padding: "1.5rem 1.25rem",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              boxSizing: "border-box",
+              textAlign: "center",
+              gap: "1rem"
+            }}>
+              <div style={{
+                width: "48px",
+                height: "48px",
+                borderRadius: "50%",
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: 0.5,
+                marginBottom: "0.5rem"
+              }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20h9"/>
+                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
                 </svg>
-              </Link>
-            );
-          })}
-        </nav>
+              </div>
+              <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "rgba(255,255,255,0.7)" }}>Yakında Eklenecek</div>
+              <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.35)", lineHeight: "1.4", maxWidth: "200px" }}>
+                Yeni indirme araçları ve ekstra servisler çok yakında burada listelenecek.
+              </div>
+            </div>
+
+          </div>
+        </div>
       </div>
     </>
   );
