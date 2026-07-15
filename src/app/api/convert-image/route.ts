@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     const originalName = file.name.replace(/\.[^/.]+$/, '');
     const filename = `${originalName}_converted.${ext}`;
 
-    return new NextResponse(outputBuffer, {
+    return new NextResponse(new Uint8Array(outputBuffer), {
       status: 200,
       headers: {
         'Content-Type': mimeType,
