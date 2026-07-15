@@ -75,22 +75,20 @@ export default function ImageToQRPage() {
         const compressed = canvas.toDataURL("image/jpeg", 0.92);
         setImage(compressed);
 
-        // Firebase Storage'a yükle
+        // Cloudinary'e server-side upload
         setUploading(true);
         try {
-          const { storage } = await import("@/lib/firebase");
-          const { ref, uploadString, getDownloadURL } = await import("firebase/storage");
-
-          const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-          const storageRef = ref(storage, `photos/${id}.jpg`);
-
-          // base64 string olarak yükle
-          await uploadString(storageRef, compressed, "data_url");
-          const firebaseUrl = await getDownloadURL(storageRef);
-
-          // Kendi görüntüleme sayfamıza yönlendir
-          const viewUrl = `${window.location.origin}/photo/${id}?url=${encodeURIComponent(firebaseUrl)}&fn=${encodeURIComponent(file.name)}`;
-          setUploadedUrl(viewUrl);
+          const res = await fetch('/api/upload-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ base64: compressed, filename: file.name }),
+          });
+          const data = await res.json();
+          if (data.url) {
+            setUploadedUrl(data.url);
+          } else {
+            throw new Error(data.error || 'Yükleme başarısız');
+          }
         } catch (err: any) {
           setUploadError("Yükleme başarısız: " + err.message);
         } finally {
