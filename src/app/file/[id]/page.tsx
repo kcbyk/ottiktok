@@ -30,6 +30,8 @@ function FileContent() {
   const [downloading, setDownloading] = useState(false);
 
   const icon = getFileIcon(mimeType, filename);
+  const isAudio = mimeType.startsWith('audio/');
+  const isVideo = mimeType.startsWith('video/');
 
   const handleDownload = async () => {
     if (!fileUrl) return;
@@ -86,7 +88,20 @@ function FileContent() {
         boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
         display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem",
       }}>
-        <div style={{ fontSize: "4rem", lineHeight: 1 }}>{icon}</div>
+        {/* Ses oynatıcı */}
+        {isAudio && (
+          <audio controls src={fileUrl} style={{ width: "100%", marginBottom: "0.5rem" }}>
+            Tarayıcınız ses oynatmayı desteklemiyor.
+          </audio>
+        )}
+        {/* Video oynatıcı */}
+        {isVideo && (
+          <video controls src={fileUrl} style={{ width: "100%", borderRadius: "8px", maxHeight: "300px" }}>
+            Tarayıcınız video oynatmayı desteklemiyor.
+          </video>
+        )}
+        {/* Diğer dosyalar için ikon */}
+        {!isAudio && !isVideo && <div style={{ fontSize: "4rem", lineHeight: 1 }}>{icon}</div>}
         <div>
           <p style={{ fontWeight: 700, fontSize: "1.05rem", wordBreak: "break-all" }}>{filename}</p>
           {mimeType && <p style={{ fontSize: "0.78rem", opacity: 0.4, marginTop: "0.25rem" }}>{mimeType}</p>}

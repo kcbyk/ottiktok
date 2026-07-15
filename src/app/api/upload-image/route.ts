@@ -23,13 +23,11 @@ function getAccounts(): CloudinaryAccount[] {
 async function uploadToCloudinary(
   account: CloudinaryAccount,
   base64: string,
-  isRaw: boolean,
+  resourceType: 'image' | 'video' | 'raw',
 ): Promise<{ secure_url: string; public_id: string } | null> {
   const timestamp = Math.round(Date.now() / 1000).toString();
   const folder = 'ottiktok-files';
 
-  // raw dosyalar için resource_type=raw
-  const resourceType = isRaw ? 'raw' : 'image';
   const signStr = `folder=${folder}&timestamp=${timestamp}${account.secret}`;
   const signature = crypto.createHash('sha256').update(signStr).digest('hex');
 
@@ -59,11 +57,17 @@ export async function POST(req: NextRequest) {
 
     const account = accounts[Math.floor(Math.random() * accounts.length)];
 
-    // Görsel mi yoksa dosya mı?
+    // Görsel mi, video mu, ses mi, yoksa raw dosya mı?
     const isImage = mimeType?.startsWith('image/') || (!mimeType && base64.startsWith('data:image/'));
-    const isRaw = !isImage;
+    const isVideo = mimeType?.startsWith('video/');
+    const isAudio = mimeType?.startsWith('audio/');
+    
+    let resourceType: 'image' | 'video' | 'raw';
+    if (isImage) resourceType = 'image';
+    else if (isVideo) resourceType = 'video';
+    else resourceType = 'raw'; // PDF, Word, ZIP, ses, vs.
 
-    const result = await uploadToCloudinary(account, base64, isRaw);
+    const result = await uploadToCloudinary(account, base64, resourceType);
 
     if (result) {
       const host = req.headers.get('host') || 'localhost:3000';
@@ -72,7 +76,7 @@ export async function POST(req: NextRequest) {
       const fileUrl = encodeURIComponent(result.secure_url);
       const id = result.public_id.split('/').pop() || 'f';
 
-      // Görsel → /photo/[id], dosya → /file/[id]
+      // Görsel → /photo/[id], video/ses → /file/[id], diğer → /file/[id]
       const viewPath = isImage ? 'photo' : 'file';
       const viewUrl = `${protocol}://${host}/${viewPath}/${id}?url=${fileUrl}&fn=${fn}&type=${encodeURIComponent(mimeType || '')}`;
 
