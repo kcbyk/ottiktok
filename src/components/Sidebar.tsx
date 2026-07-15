@@ -511,6 +511,72 @@ export default function Sidebar() {
                 );
               })()}
 
+              {/* Fotoğraf → QR */}
+              {(() => {
+                const isActive = pathname === "/image-to-qr";
+                return (
+                  <Link
+                    href="/image-to-qr"
+                    onClick={() => setMenuOpen(false)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "1rem",
+                      padding: "0.85rem 1rem", borderRadius: "10px",
+                      textDecoration: "none", color: "white",
+                      background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
+                      border: isActive ? "1px solid rgba(255,255,255,0.1)" : "1px solid transparent",
+                      transition: "background 0.2s ease",
+                    }}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <div style={{ width: "38px", height: "38px", borderRadius: "10px", flexShrink: 0, background: "linear-gradient(135deg, #f59e0b, #ef4444)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(245,158,11,0.3)" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1"/>
+                        <path d="M14 14h2v2h-2z"/><path d="M18 14h3v2h-3z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: "0.92rem" }}>Fotoğraf → QR</div>
+                      <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)", marginTop: "2px" }}>Görseli QR koda dönüştür</div>
+                    </div>
+                    <svg style={{ marginLeft: "auto", opacity: 0.35 }} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                  </Link>
+                );
+              })()}
+
+              {/* QR Okuyucu */}
+              {(() => {
+                const isActive = pathname === "/qr-reader";
+                return (
+                  <Link
+                    href="/qr-reader"
+                    onClick={() => setMenuOpen(false)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "1rem",
+                      padding: "0.85rem 1rem", borderRadius: "10px",
+                      textDecoration: "none", color: "white",
+                      background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
+                      border: isActive ? "1px solid rgba(255,255,255,0.1)" : "1px solid transparent",
+                      transition: "background 0.2s ease",
+                    }}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <div style={{ width: "38px", height: "38px", borderRadius: "10px", flexShrink: 0, background: "linear-gradient(135deg, #10b981, #0ea5e9)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(16,185,129,0.3)" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: "0.92rem" }}>QR Okuyucu</div>
+                      <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)", marginTop: "2px" }}>QR yükle, içeriği aç</div>
+                    </div>
+                    <svg style={{ marginLeft: "auto", opacity: 0.35 }} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                  </Link>
+                );
+              })()}
+
               {/* Yakında */}
               <div style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.85rem 1rem", borderRadius: "10px", border: "1px dashed rgba(255,255,255,0.07)", opacity: 0.4, marginTop: "0.25rem" }}>
                 <div style={{ width: "38px", height: "38px", borderRadius: "10px", background: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
