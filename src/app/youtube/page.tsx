@@ -20,11 +20,37 @@ async function downloadVideo(url: string, filename: string) {
   }
 }
 
+/* ── YouTube İkonu ── */
+function YTIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="white">
+      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+    </svg>
+  );
+}
+
 export default function YouTubePage() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
+
+  const openPlatform = () => {
+    const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+    const isMobile = /android|iphone|ipad|ipod/i.test(userAgent);
+    
+    if (isMobile) {
+      const start = Date.now();
+      window.location.href = "vnd.youtube://";
+      setTimeout(() => {
+        if (Date.now() - start < 2000) {
+          window.location.href = "https://www.youtube.com/";
+        }
+      }, 1000);
+    } else {
+      window.open("https://www.youtube.com/", "_blank");
+    }
+  };
 
   const handleDownload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,20 +106,33 @@ export default function YouTubePage() {
 
       {/* Başlık */}
       <div style={{ textAlign: "center" }}>
-        <div style={{
-          width: "70px",
-          height: "70px",
-          borderRadius: "18px",
-          background: "#FF0000",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          margin: "0 auto 1.25rem",
-          boxShadow: "0 8px 30px rgba(255,0,0,0.35)",
-        }}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="white">
-            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-          </svg>
+        {/* YouTube İkonu */}
+        <div 
+          onClick={openPlatform}
+          style={{
+            width: "70px",
+            height: "70px",
+            borderRadius: "18px",
+            background: "#FF0000",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto 1.25rem",
+            boxShadow: "0 8px 30px rgba(255,0,0,0.35)",
+            cursor: "pointer",
+            transition: "transform 0.2s ease, box-shadow 0.2s ease",
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.transform = "scale(1.08)";
+            e.currentTarget.style.boxShadow = "0 12px 35px rgba(255,0,0,0.55)";
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.transform = "scale(1)";
+            e.currentTarget.style.boxShadow = "0 8px 30px rgba(255,0,0,0.35)";
+          }}
+          title="YouTube Uygulamasını/Sanal Sayfasını Aç"
+        >
+          <YTIcon size={38} />
         </div>
         <h1 style={{
           fontSize: "2.5rem",

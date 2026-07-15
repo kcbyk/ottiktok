@@ -39,6 +39,14 @@ function XIcon({ size = 18 }: { size?: number }) {
   );
 }
 
+function YTIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="white">
+      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+    </svg>
+  );
+}
+
 export default function Sidebar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPage, setMenuPage] = useState(1); // 1. sayfa veya 2. sayfa
@@ -54,6 +62,15 @@ export default function Sidebar() {
       border: "1px solid rgba(255,255,255,0.15)",
       shadow: "rgba(254,44,85,0.25)",
       icon: <TIcon size={20} />
+    },
+    {
+      name: "YouTube İndirici",
+      desc: "Video ve Shorts indirme",
+      href: "/youtube",
+      color: "#FF0000",
+      border: "none",
+      shadow: "rgba(255,0,0,0.25)",
+      icon: <YTIcon size={20} />
     },
     {
       name: "Instagram İndirici",
@@ -305,40 +322,214 @@ export default function Sidebar() {
               })}
             </nav>
 
-            {/* Sayfa 2: Dahası (Boşaltılmış / İleride Eklenecek Özellikler İçin) */}
-            <div style={{
+            {/* Sayfa 2: Araçlar */}
+            <nav style={{
               width: "50%",
-              padding: "1.5rem 1.25rem",
+              padding: "1.25rem 0.75rem",
               display: "flex",
               flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              boxSizing: "border-box",
-              textAlign: "center",
-              gap: "1rem"
+              gap: "0.5rem",
+              boxSizing: "border-box"
             }}>
-              <div style={{
-                width: "48px",
-                height: "48px",
-                borderRadius: "50%",
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: 0.5,
-                marginBottom: "0.5rem"
-              }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 20h9"/>
-                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-                </svg>
+              {/* Görsel Dönüştürücü */}
+              {(() => {
+                const isActive = pathname === "/image-converter";
+                return (
+                  <Link
+                    href="/image-converter"
+                    onClick={() => setMenuOpen(false)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "1rem",
+                      padding: "0.85rem 1rem",
+                      borderRadius: "10px",
+                      textDecoration: "none",
+                      color: "white",
+                      background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
+                      border: isActive ? "1px solid rgba(255,255,255,0.1)" : "1px solid transparent",
+                      transition: "background 0.2s ease",
+                    }}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <div style={{
+                      width: "38px", height: "38px", borderRadius: "10px", flexShrink: 0,
+                      background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      boxShadow: "0 4px 12px rgba(99,102,241,0.3)",
+                    }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="3"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: "0.92rem" }}>Görsel Dönüştürücü</div>
+                      <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)", marginTop: "2px" }}>JPG, PNG, WebP, AVIF</div>
+                    </div>
+                    <svg style={{ marginLeft: "auto", opacity: 0.35 }} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </Link>
+                );
+              })()}
+
+              {/* Renk Paleti */}
+              {(() => {
+                const isActive = pathname === "/color-picker";
+                return (
+                  <Link
+                    href="/color-picker"
+                    onClick={() => setMenuOpen(false)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "1rem",
+                      padding: "0.85rem 1rem", borderRadius: "10px",
+                      textDecoration: "none", color: "white",
+                      background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
+                      border: isActive ? "1px solid rgba(255,255,255,0.1)" : "1px solid transparent",
+                      transition: "background 0.2s ease",
+                    }}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <div style={{
+                      width: "38px", height: "38px", borderRadius: "10px", flexShrink: 0,
+                      background: "linear-gradient(135deg, #f59e0b, #ef4444, #8b5cf6)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      boxShadow: "0 4px 12px rgba(139,92,246,0.3)",
+                    }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="13.5" cy="6.5" r="2.5"/><circle cx="19" cy="13" r="2.5"/><circle cx="6" cy="14" r="2.5"/><circle cx="10.5" cy="19.5" r="2.5"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: "0.92rem" }}>Renk Paleti</div>
+                      <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)", marginTop: "2px" }}>HEX, RGB, HSL dönüştür</div>
+                    </div>
+                    <svg style={{ marginLeft: "auto", opacity: 0.35 }} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </Link>
+                );
+              })()}
+
+              {/* QR Kod */}
+              {(() => {
+                const isActive = pathname === "/qr-code";
+                return (
+                  <Link
+                    href="/qr-code"
+                    onClick={() => setMenuOpen(false)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "1rem",
+                      padding: "0.85rem 1rem", borderRadius: "10px",
+                      textDecoration: "none", color: "white",
+                      background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
+                      border: isActive ? "1px solid rgba(255,255,255,0.1)" : "1px solid transparent",
+                      transition: "background 0.2s ease",
+                    }}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <div style={{
+                      width: "38px", height: "38px", borderRadius: "10px", flexShrink: 0,
+                      background: "linear-gradient(135deg, #0ea5e9, #6366f1)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      boxShadow: "0 4px 12px rgba(14,165,233,0.3)",
+                    }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+                        <path d="M14 14h2v2h-2z"/><path d="M18 14h3v2h-3z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: "0.92rem" }}>QR Kod Oluşturucu</div>
+                      <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)", marginTop: "2px" }}>URL, WiFi, e-posta, metin</div>
+                    </div>
+                    <svg style={{ marginLeft: "auto", opacity: 0.35 }} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </Link>
+                );
+              })()}
+
+              {/* Ses Dönüştürücü */}
+              {(() => {
+                const isActive = pathname === "/audio-converter";
+                return (
+                  <Link
+                    href="/audio-converter"
+                    onClick={() => setMenuOpen(false)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "1rem",
+                      padding: "0.85rem 1rem", borderRadius: "10px",
+                      textDecoration: "none", color: "white",
+                      background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
+                      border: isActive ? "1px solid rgba(255,255,255,0.1)" : "1px solid transparent",
+                      transition: "background 0.2s ease",
+                    }}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <div style={{ width: "38px", height: "38px", borderRadius: "10px", flexShrink: 0, background: "linear-gradient(135deg, #f59e0b, #ef4444)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(245,158,11,0.3)" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: "0.92rem" }}>Ses Dönüştürücü</div>
+                      <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)", marginTop: "2px" }}>MP3, WAV, OGG, AAC, FLAC</div>
+                    </div>
+                    <svg style={{ marginLeft: "auto", opacity: 0.35 }} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                  </Link>
+                );
+              })()}
+
+              {/* AI Playlist */}
+              {(() => {
+                const isActive = pathname === "/playlist";
+                return (
+                  <Link
+                    href="/playlist"
+                    onClick={() => setMenuOpen(false)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "1rem",
+                      padding: "0.85rem 1rem", borderRadius: "10px",
+                      textDecoration: "none", color: "white",
+                      background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
+                      border: isActive ? "1px solid rgba(255,255,255,0.1)" : "1px solid transparent",
+                      transition: "background 0.2s ease",
+                    }}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <div style={{ width: "38px", height: "38px", borderRadius: "10px", flexShrink: 0, background: "linear-gradient(135deg, #8b5cf6, #ec4899)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(139,92,246,0.3)" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M9 9l12-2"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: "0.92rem" }}>AI Playlist</div>
+                      <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)", marginTop: "2px" }}>Duygu bazlı müzik listesi</div>
+                    </div>
+                    <svg style={{ marginLeft: "auto", opacity: 0.35 }} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                  </Link>
+                );
+              })()}
+
+              {/* Yakında */}
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.85rem 1rem", borderRadius: "10px", border: "1px dashed rgba(255,255,255,0.07)", opacity: 0.4, marginTop: "0.25rem" }}>
+                <div style={{ width: "38px", height: "38px", borderRadius: "10px", background: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: "0.88rem" }}>Yakında...</div>
+                  <div style={{ fontSize: "0.73rem", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>Yeni araçlar eklenecek</div>
+                </div>
               </div>
-              <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "rgba(255,255,255,0.7)" }}>Yakında Eklenecek</div>
-              <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.35)", lineHeight: "1.4", maxWidth: "200px" }}>
-                Yeni indirme araçları ve ekstra servisler çok yakında burada listelenecek.
-              </div>
-            </div>
+            </nav>
 
           </div>
         </div>
