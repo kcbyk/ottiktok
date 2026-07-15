@@ -190,7 +190,7 @@ export default function ColorPickerPage() {
   } as React.CSSProperties;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem", alignItems: "center", maxWidth: "700px", margin: "0 auto", padding: "2rem 1rem 5rem" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem", alignItems: "center", maxWidth: "700px", margin: "0 auto" }}>
 
       {/* Geri */}
       <div style={{ width: "100%", marginTop: "0.5rem" }}>
@@ -255,7 +255,7 @@ export default function ColorPickerPage() {
         {/* RGB Input */}
         <div>
           <label style={{ fontSize: "0.78rem", fontWeight: 600, opacity: 0.6, textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: "0.4rem" }}>RGB</label>
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
             {(["r", "g", "b"] as const).map((ch, i) => (
               <div key={ch} style={{ flex: 1, position: "relative" }}>
                 <span style={{ position: "absolute", left: "0.6rem", top: "50%", transform: "translateY(-50%)", fontSize: "0.75rem", fontWeight: 700, color: ["#f87171","#4ade80","#60a5fa"][i], opacity: 0.8 }}>{ch.toUpperCase()}</span>
@@ -276,7 +276,7 @@ export default function ColorPickerPage() {
         {/* HSL Input */}
         <div>
           <label style={{ fontSize: "0.78rem", fontWeight: 600, opacity: 0.6, textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: "0.4rem" }}>HSL</label>
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
             {([["h","H°",360],["s","S%",100],["l","L%",100]] as const).map(([ch, label, max]) => (
               <div key={ch} style={{ flex: 1, position: "relative" }}>
                 <span style={{ position: "absolute", left: "0.6rem", top: "50%", transform: "translateY(-50%)", fontSize: "0.7rem", fontWeight: 700, opacity: 0.6 }}>{label}</span>
@@ -298,7 +298,7 @@ export default function ColorPickerPage() {
       {/* Tonlar (Shades) */}
       <div className="glass-panel" style={{ width: "100%" }}>
         <p style={{ fontSize: "0.85rem", fontWeight: 600, opacity: 0.6, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>Tonlar — tıkla &amp; kopyala</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: "0.4rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.4rem" }} className="shades-grid">
           {shades.map(shade => (
             <ColorChip key={shade.label} hex={shade.hex} label={shade.label} size="md" />
           ))}

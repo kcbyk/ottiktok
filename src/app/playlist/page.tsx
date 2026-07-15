@@ -122,10 +122,16 @@ export default function PlaylistPage() {
     try {
       const mp3 = await getMP3Url(song.videoId);
       if (!mp3) throw new Error("MP3 linki alınamadı");
-      const fn = `${song.artist} - ${song.title}.mp3`.replace(/[^\w\s\-_.]/g, "");
+      // Signed URL — download attribute ile indir, çalışmazsa yeni sekmede aç
+      const filename = `${song.artist} - ${song.title}.mp3`.replace(/[^a-zA-Z0-9\s\-_.]/g, "").trim();
       const a = document.createElement("a");
-      a.href = `/api/force-download?url=${encodeURIComponent(mp3)}&filename=${encodeURIComponent(fn)}`;
-      a.download = fn; a.click();
+      a.href = mp3;
+      a.download = filename;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       setDownloaded(d => ({ ...d, [idx]: true }));
     } catch (e: any) { alert("İndirme başarısız: " + e.message); }
     finally { setDownloading(d => ({ ...d, [idx]: false })); }
@@ -135,24 +141,45 @@ export default function PlaylistPage() {
     if (!songs.length) return;
     setZipLoading(true);
     try {
-      const JSZip = (await import("jszip")).default;
-      const zip = new JSZip();
-      const folder = zip.folder(playlist?.playlist_name || "playlist") as any;
-      await Promise.all(songs.filter(s => s.videoId).map(async (song, idx) => {
+      // Her şarkı için MP3 URL'lerini topla
+      const validSongs = songs.filter(s => s.videoId);
+      const results: { song: Song; idx: number; url: string }[] = [];
+
+      for (let i = 0; i < validSongs.length; i++) {
+        const song = validSongs[i];
         try {
           const mp3 = await getMP3Url(song.videoId!);
-          if (!mp3) return;
-          const res = await fetch(`/api/force-download?url=${encodeURIComponent(mp3)}&filename=t.mp3`);
-          if (!res.ok) return;
-          folder.file(`${idx+1}. ${song.artist} - ${song.title}.mp3`.replace(/[^\w\s\-_.]/g,""), await res.blob());
+          if (mp3) results.push({ song, idx: i, url: mp3 });
         } catch {}
-      }));
-      const blob = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `${playlist?.playlist_name||"playlist"}.zip`; a.click();
-      URL.revokeObjectURL(url);
-    } catch (e: any) { alert("ZIP hatası: " + e.message); }
+      }
+
+      if (results.length === 0) {
+        alert("Hiç şarkı indirilemedi. Lütfen tek tek indirmeyi deneyin.");
+        return;
+      }
+
+      // MP3 signed URL'leri proxy üzerinden fetch edilemeyebilir (CORS/auth kısıtlamaları).
+      // En güvenilir yöntem: her şarkıyı ayrı sekme/link ile indir.
+      // Kullanıcıya onay sor (çok sekme açılacağını belirt)
+      const proceed = window.confirm(
+        `${results.length} şarkı ayrı ayrı indirilecek (tarayıcı pop-up izni gerekebilir). Devam edilsin mi?\n\nNot: Tarayıcı pop-up engelliyorsa ayarlardan izin verin.`
+      );
+      if (!proceed) return;
+
+      for (const { song, url } of results) {
+        const filename = `${song.artist} - ${song.title}.mp3`.replace(/[^a-zA-Z0-9\s\-_.]/g, "").trim();
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        // Çok hızlı açılırsa tarayıcı engelleyebilir, küçük gecikme ekle
+        await new Promise(r => setTimeout(r, 300));
+      }
+    } catch (e: any) { alert("İndirme hatası: " + e.message); }
     finally { setZipLoading(false); }
   };
 
@@ -160,7 +187,7 @@ export default function PlaylistPage() {
   const spin = { animation: "spin 1s linear infinite" } as React.CSSProperties;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem", alignItems: "center", maxWidth: "720px", margin: "0 auto", padding: "2rem 1rem 5rem" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem", alignItems: "center", maxWidth: "720px", margin: "0 auto" }}>
       <div style={{ width: "100%", marginTop: "0.5rem" }}>
         <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", color: "rgba(255,255,255,0.6)", textDecoration: "none", fontSize: "0.9rem" }}>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -230,7 +257,7 @@ export default function PlaylistPage() {
                 <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
                   <button onClick={handleDownloadAll} disabled={zipLoading} className="btn" style={{ background: "linear-gradient(135deg, #8b5cf6, #ec4899)", fontSize: "0.85rem", padding: "0.6rem 1.1rem" }}>
                     {zipLoading ? <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={spin}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> : null}
-                    {zipLoading ? " ZIP..." : "ZIP İndir"}
+                    {zipLoading ? " İndiriliyor..." : "Tümünü İndir"}
                   </button>
                   <button onClick={() => handleGenerate()} className="btn btn-secondary" style={{ fontSize: "0.85rem", padding: "0.6rem 1rem" }}>Yenile</button>
                 </div>

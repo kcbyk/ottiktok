@@ -3,21 +3,17 @@
 import { useState } from "react";
 import Link from "next/link";
 
-// YouTube CDN URL'leri çok uzun — proxy yerine client-side blob indirme kullan
-async function downloadVideo(url: string, filename: string) {
-  try {
-    const res = await fetch(url, { headers: { 'Range': 'bytes=0-' } });
-    if (!res.ok) throw new Error('fetch failed');
-    const blob = await res.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  } catch {
-    // Blob başarısız olursa direkt aç (tarayıcı indirir)
-    window.open(url, '_blank');
-  }
+// YouTube CDN URL'leri client IP'sine bağlı signed URL — proxy çalışmaz.
+// Doğrudan tarayıcıda aç, tarayıcı indirir veya oynatır.
+function openDirectDownload(url: string, filename: string) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 /* ── YouTube İkonu ── */
@@ -191,19 +187,22 @@ export default function YouTubePage() {
               {result.title && <p style={{ opacity: 0.7, fontSize: "0.9rem", marginBottom: "1.25rem", lineHeight: "1.4" }}>{result.title}</p>}
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 {result.formats && result.formats.map((fmt: any, i: number) => (
-                  <a
+                  <button
                     key={i}
-                    href={`/api/force-download?url=${encodeURIComponent(fmt.url)}&filename=youtube_video_${fmt.quality.replace(/[^a-z0-9]/gi,'_')}.mp4`}
+                    onClick={() => openDirectDownload(fmt.url, `youtube_video_${fmt.quality.replace(/[^a-z0-9]/gi,'_')}.mp4`)}
                     className="btn"
-                    style={{ textDecoration: "none", background: i === 0 ? "#FF0000" : "rgba(255,255,255,0.1)", color: "white", border: i !== 0 ? "1px solid rgba(255,255,255,0.1)" : "none" }}
+                    style={{ background: i === 0 ? "#FF0000" : "rgba(255,255,255,0.1)", color: "white", border: i !== 0 ? "1px solid rgba(255,255,255,0.1)" : "none" }}
                   >
                     İndir — {fmt.quality}
-                  </a>
+                  </button>
                 ))}
                 {result.music && (
-                  <a href={`/api/force-download?url=${encodeURIComponent(result.music)}&filename=youtube_audio.mp3`} className="btn btn-secondary" style={{ textDecoration: "none" }}>
+                  <button
+                    onClick={() => openDirectDownload(result.music, 'youtube_audio.mp3')}
+                    className="btn btn-secondary"
+                  >
                     Sesi İndir (MP3)
-                  </a>
+                  </button>
                 )}
               </div>
             </div>

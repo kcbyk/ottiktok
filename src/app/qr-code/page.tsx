@@ -126,7 +126,7 @@ export default function QRCodePage() {
   } as React.CSSProperties;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem", alignItems: "center", maxWidth: "700px", margin: "0 auto", padding: "2rem 1rem 5rem" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem", alignItems: "center", maxWidth: "700px", margin: "0 auto" }}>
 
       {/* Geri */}
       <div style={{ width: "100%", marginTop: "0.5rem" }}>
@@ -151,7 +151,7 @@ export default function QRCodePage() {
         <p className="subtitle" style={{ margin: 0 }}>URL, WiFi, metin ve daha fazlası — anında QR üret.</p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem", width: "100%" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "1.5rem", width: "100%" }} className="qr-grid">
 
         {/* Sol: Ayarlar */}
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
@@ -349,6 +349,9 @@ export default function QRCodePage() {
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         select option { background: #111; color: white; }
+        @media (min-width: 640px) {
+          .qr-grid { grid-template-columns: 1fr 1fr !important; }
+        }
       `}</style>
     </div>
   );

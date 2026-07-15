@@ -128,7 +128,7 @@ export default function ImageConverterPage() {
     : null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "2rem", alignItems: "center", maxWidth: "700px", margin: "0 auto", padding: "2rem 1rem 5rem" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "2rem", alignItems: "center", maxWidth: "700px", margin: "0 auto" }}>
 
       {/* Geri Butonu */}
       <div style={{ width: "100%", marginTop: "0.5rem" }}>

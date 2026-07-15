@@ -158,7 +158,7 @@ export default function Sidebar() {
           top: 0,
           left: 0,
           height: "100vh",
-          width: "300px",
+          width: "min(300px, 85vw)",
           zIndex: 1002,
           background: "rgba(8,8,8,0.92)",
           backdropFilter: "blur(30px)",
@@ -169,6 +169,7 @@ export default function Sidebar() {
           transition: "transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
           display: "flex",
           flexDirection: "column",
+          overflowY: "auto",
         }}
       >
         {/* Sidebar Başlık */}

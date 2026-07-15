@@ -35,7 +35,43 @@ body {
   width: 100%;
   max-width: 800px;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: 2rem 1rem 4rem;
+  /* Sağ üstteki hamburger butonu (56px) ile çakışmayı önle */
+  padding-right: 1rem;
+}
+
+@media (max-width: 639px) {
+  .container {
+    padding: 1rem 0.75rem 4rem;
+    /* Hamburger butonunun altına düş */
+    padding-top: 4.5rem;
+  }
+}
+
+/* Mobil genel düzeltmeler */
+@media (max-width: 639px) {
+  h1 {
+    font-size: 1.75rem !important;
+  }
+
+  .glass-panel {
+    padding: 1.25rem !important;
+  }
+
+  /* Grid tek kolon yap */
+  .qr-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Butonlar tam genişlik */
+  .btn {
+    width: 100%;
+  }
+
+  /* Flexwrap düzeltmesi - taşmayı önle */
+  * {
+    min-width: 0;
+  }
 }
 
 /* Typography */

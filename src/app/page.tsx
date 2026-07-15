@@ -100,12 +100,12 @@ export default function Home() {
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "3.5rem", alignItems: "center", width: "100%", maxWidth: "900px", margin: "0 auto", padding: "2rem 1rem 5rem" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "3.5rem", alignItems: "center", width: "100%", maxWidth: "900px", margin: "0 auto", padding: "1rem 0 5rem" }}>
       
       {/* ── Karşılama Başlığı ── */}
-      <div style={{ textAlign: "center", marginTop: "1.5rem" }}>
+      <div style={{ textAlign: "center", marginTop: "0.5rem", width: "100%" }}>
         <h1 style={{
-          fontSize: "2.8rem",
+          fontSize: "clamp(1.6rem, 5vw, 2.8rem)",
           fontWeight: 800,
           background: "linear-gradient(to right, #ffffff, rgba(255,255,255,0.7))",
           WebkitBackgroundClip: "text",
@@ -115,7 +115,7 @@ export default function Home() {
         }}>
           Evrensel Sosyal Medya İndirici
         </h1>
-        <p className="subtitle" style={{ fontSize: "1.05rem", opacity: 0.75, maxWidth: "600px", margin: "0 auto" }}>
+        <p className="subtitle" style={{ fontSize: "clamp(0.88rem, 2.5vw, 1.05rem)", opacity: 0.75, maxWidth: "600px", margin: "0 auto" }}>
           TikTok, Instagram ve Pinterest medyalarını yüksek kalitede, tamamen reklamsız ve doğrudan indirin.
         </p>
       </div>
@@ -123,8 +123,8 @@ export default function Home() {
       {/* ── Platform Kartları ── */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-        gap: "1.5rem",
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(260px, 100%), 1fr))",
+        gap: "1.25rem",
         width: "100%",
         perspective: "1000px"
       }}>

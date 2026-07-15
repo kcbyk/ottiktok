@@ -163,7 +163,7 @@ export default function AudioConverterPage() {
   const savings = file && outputSize ? Math.round((1 - outputSize / file.size) * 100) : null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem", alignItems: "center", maxWidth: "680px", margin: "0 auto", padding: "2rem 1rem 5rem" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem", alignItems: "center", maxWidth: "680px", margin: "0 auto" }}>
 
       {/* Geri */}
       <div style={{ width: "100%", marginTop: "0.5rem" }}>
