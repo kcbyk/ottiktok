@@ -75,20 +75,22 @@ export default function ImageToQRPage() {
         const compressed = canvas.toDataURL("image/jpeg", 0.92);
         setImage(compressed);
 
-        // Server route üzerinden yükle
+        // Firebase Storage'a yükle
         setUploading(true);
         try {
-          const res = await fetch('/api/upload-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ base64: compressed }),
-          });
-          const data = await res.json();
-          if (data.url) {
-            setUploadedUrl(data.url);
-          } else {
-            throw new Error(data.error || 'Yükleme başarısız');
-          }
+          const { storage } = await import("@/lib/firebase");
+          const { ref, uploadString, getDownloadURL } = await import("firebase/storage");
+
+          const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+          const storageRef = ref(storage, `photos/${id}.jpg`);
+
+          // base64 string olarak yükle
+          await uploadString(storageRef, compressed, "data_url");
+          const firebaseUrl = await getDownloadURL(storageRef);
+
+          // Kendi görüntüleme sayfamıza yönlendir
+          const viewUrl = `${window.location.origin}/photo/${id}?url=${encodeURIComponent(firebaseUrl)}&fn=${encodeURIComponent(file.name)}`;
+          setUploadedUrl(viewUrl);
         } catch (err: any) {
           setUploadError("Yükleme başarısız: " + err.message);
         } finally {
@@ -274,7 +276,7 @@ export default function ImageToQRPage() {
             </div>
           )}
           <p style={{ fontSize: "0.72rem", opacity: 0.35, textAlign: "center" }}>
-            QR tarandığında fotoğraf doğrudan açılır. Bağlantı 10 dakika geçerlidir.
+            QR tarandığında kendi sayfanda fotoğraf açılır ve indirilebilir.
           </p>
         </div>
       )}
