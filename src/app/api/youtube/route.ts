@@ -85,7 +85,10 @@ export async function POST(request: Request) {
     // Ses+video birleşik formatlar (360p genelde)
     const combinedFormats = (streamData.formats || [])
       .filter((f: any) => f.qualityLabel && f.url && f.mimeType?.includes('video/mp4'))
-      .map((f: any) => ({ quality: f.qualityLabel + ' (Sesli)', url: f.url }));
+      .map((f: any) => {
+        const urlObj = new URL(f.url);
+        return { quality: f.qualityLabel + ' (Sesli)', url: f.url, itag: urlObj.searchParams.get('itag') };
+      });
 
     // Yüksek kalite video (ses yok)
     const seen = new Set<string>();
@@ -101,7 +104,10 @@ export async function POST(request: Request) {
         return order.indexOf(a.qualityLabel) - order.indexOf(b.qualityLabel);
       })
       .slice(0, 4)
-      .map((f: any) => ({ quality: f.qualityLabel + ' (Sessiz)', url: f.url }));
+      .map((f: any) => {
+        const urlObj = new URL(f.url);
+        return { quality: f.qualityLabel + ' (Sessiz)', url: f.url, itag: urlObj.searchParams.get('itag') };
+      });
 
     const formats = [...combinedFormats, ...adaptiveVideoFormats];
 
@@ -135,7 +141,7 @@ export async function POST(request: Request) {
       } catch (_) {}
     }
 
-    return NextResponse.json({ title, author, cover, formats, music: musicUrl });
+    return NextResponse.json({ title, author, cover, formats, music: musicUrl, videoId });
   } catch (error) {
     console.error('YouTube API Hatası:', error);
     return NextResponse.json({ error: 'Sunucu hatası, lütfen tekrar deneyin.' }, { status: 500 });

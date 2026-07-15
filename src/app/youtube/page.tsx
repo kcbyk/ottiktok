@@ -3,14 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 
-// YouTube CDN URL'leri cross-origin — mobilde <a download> çalışmaz.
-// force-download route'u YouTube için 302 redirect yapar, diğerleri için proxy.
-function openDirectDownload(url: string, filename: string) {
-  const proxyUrl = `/api/force-download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+// YouTube CDN URL'leri client IP'sine değil server IP'sine signed.
+// itag varsa server-side stream (youtube-dl), yoksa direkt link.
+function openDirectDownload(url: string, filename: string, videoId?: string, itag?: string) {
+  let href: string;
+  if (videoId && itag) {
+    // Server-side stream — Vercel'in IP'siyle fetch edilir, mobilde çalışır
+    href = `/api/youtube-dl?videoId=${encodeURIComponent(videoId)}&itag=${encodeURIComponent(itag)}&filename=${encodeURIComponent(filename)}`;
+  } else {
+    href = `/api/force-download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+  }
   const a = document.createElement('a');
-  a.href = proxyUrl;
+  a.href = href;
   a.download = filename;
-  // Mobilde download attribute cross-origin'de çalışmaz ama same-origin proxy'de çalışır
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -189,7 +194,12 @@ export default function YouTubePage() {
                 {result.formats && result.formats.map((fmt: any, i: number) => (
                   <button
                     key={i}
-                    onClick={() => openDirectDownload(fmt.url, `youtube_video_${fmt.quality.replace(/[^a-z0-9]/gi,'_')}.mp4`)}
+                    onClick={() => openDirectDownload(
+                      fmt.url,
+                      `youtube_video_${fmt.quality.replace(/[^a-z0-9]/gi,'_')}.mp4`,
+                      result.videoId,
+                      fmt.itag
+                    )}
                     className="btn"
                     style={{ background: i === 0 ? "#FF0000" : "rgba(255,255,255,0.1)", color: "white", border: i !== 0 ? "1px solid rgba(255,255,255,0.1)" : "none" }}
                   >
