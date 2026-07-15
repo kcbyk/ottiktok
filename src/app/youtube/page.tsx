@@ -3,22 +3,23 @@
 import { useState } from "react";
 import Link from "next/link";
 
-// YouTube CDN URL'leri client IP'sine değil server IP'sine signed.
-// itag varsa server-side stream (youtube-dl), yoksa direkt link.
-function openDirectDownload(url: string, filename: string, videoId?: string, itag?: string) {
-  let href: string;
+// YouTube CDN URL'leri signed — mobilde <a download> çalışmaz çünkü cross-origin.
+// Çözüm: API'den taze URL al (Vercel IP'siyle signed), window.open ile aç.
+// window.open her platformda (mobil dahil) çalışır.
+async function openDirectDownload(url: string, filename: string, videoId?: string, itag?: string) {
   if (videoId && itag) {
-    // Server-side stream — Vercel'in IP'siyle fetch edilir, mobilde çalışır
-    href = `/api/youtube-dl?videoId=${encodeURIComponent(videoId)}&itag=${encodeURIComponent(itag)}&filename=${encodeURIComponent(filename)}`;
-  } else {
-    href = `/api/force-download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+    try {
+      // Taze URL al (itag ile)
+      const res = await fetch(`/api/youtube-dl?videoId=${encodeURIComponent(videoId)}&itag=${encodeURIComponent(itag)}`);
+      const data = await res.json();
+      if (data.url) {
+        window.open(data.url, '_blank');
+        return;
+      }
+    } catch (_) {}
   }
-  const a = document.createElement('a');
-  a.href = href;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  // Fallback: mevcut URL'yi direkt aç
+  window.open(url, '_blank');
 }
 
 /* ── YouTube İkonu ── */
@@ -213,8 +214,7 @@ export default function YouTubePage() {
                   >
                     Sesi İndir (MP3)
                   </button>
-                )}
-              </div>
+                )}              </div>
             </div>
           </div>
         </div>
