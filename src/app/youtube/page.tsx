@@ -3,14 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 
-// YouTube CDN URL'leri client IP'sine bağlı signed URL — proxy çalışmaz.
-// Doğrudan tarayıcıda aç, tarayıcı indirir veya oynatır.
+// YouTube CDN URL'leri cross-origin — mobilde <a download> çalışmaz.
+// force-download route'u YouTube için 302 redirect yapar, diğerleri için proxy.
 function openDirectDownload(url: string, filename: string) {
+  const proxyUrl = `/api/force-download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
   const a = document.createElement('a');
-  a.href = url;
+  a.href = proxyUrl;
   a.download = filename;
-  a.target = '_blank';
-  a.rel = 'noopener noreferrer';
+  // Mobilde download attribute cross-origin'de çalışmaz ama same-origin proxy'de çalışır
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
