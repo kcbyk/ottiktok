@@ -3,9 +3,24 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
 
-export default function ImageToQRPage() {
-  const [image, setImage] = useState<string | null>(null);
-  const [imageName, setImageName] = useState("");
+function getFileIcon(mimeType: string, filename: string) {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  if (mimeType.startsWith('image/')) return null; // Görsel — önizleme göster
+  if (mimeType.startsWith('video/')) return '🎬';
+  if (mimeType.startsWith('audio/')) return '🎵';
+  if (mimeType.includes('pdf') || ext === 'pdf') return '📄';
+  if (mimeType.includes('word') || ['docx','doc'].includes(ext)) return '📝';
+  if (mimeType.includes('excel') || ['xlsx','xls'].includes(ext)) return '📊';
+  if (['zip','rar','7z'].includes(ext)) return '🗜️';
+  if (mimeType.includes('text') || ext === 'txt') return '📃';
+  return '📁';
+}
+
+export default function FileToQRPage() {
+  const [preview, setPreview] = useState<string | null>(null); // görsel önizleme
+  const [fileIcon, setFileIcon] = useState<string | null>(null);
+  const [fileName, setFileName] = useState("");
+  const [fileMime, setFileMime] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [generating, setGenerating] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -25,17 +40,13 @@ export default function ImageToQRPage() {
     try {
       const QRCode = (await import("qrcode")).default;
       const qr = await QRCode.toDataURL(url, {
-        width: qrSize,
-        margin: 2,
+        width: qrSize, margin: 2,
         color: { dark: fgColor, light: bgColor },
         errorCorrectionLevel: errorLevel,
       });
       setQrDataUrl(qr);
-    } catch (err) {
-      console.error("QR oluşturma hatası:", err);
-    } finally {
-      setGenerating(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setGenerating(false); }
   }, [qrSize, fgColor, bgColor, errorLevel]);
 
   useEffect(() => {
@@ -46,88 +57,86 @@ export default function ImageToQRPage() {
   }, [uploadedUrl, generateQRFromUrl]);
 
   const handleFile = async (file: File) => {
-    if (!file.type.startsWith("image/")) return;
-    setImageName(file.name);
-    setQrDataUrl("");
-    setUploadedUrl("");
-    setUploadError("");
+    setFileName(file.name);
+    setFileMime(file.type);
+    setQrDataUrl(""); setUploadedUrl(""); setUploadError("");
+    setPreview(null); setFileIcon(null);
 
-    // Önizleme için görseli oku
+    const icon = getFileIcon(file.type, file.name);
+    if (icon) setFileIcon(icon); // dosya
+
     const reader = new FileReader();
     reader.onload = async (e) => {
       const dataUrl = e.target?.result as string;
 
-      // Canvas ile kaliteyi koru ama boyutu sınırla (upload hızı için)
-      const img = new Image();
-      img.onload = async () => {
-        const canvas = document.createElement("canvas");
-        const maxDim = 1200; // yüksek kalite
-        let w = img.width, h = img.height;
-        if (w > maxDim || h > maxDim) {
-          if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
-          else { w = Math.round(w * maxDim / h); h = maxDim; }
-        }
-        canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext("2d")!;
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(img, 0, 0, w, h);
-        const compressed = canvas.toDataURL("image/jpeg", 0.92);
-        setImage(compressed);
+      const isImage = file.type.startsWith("image/");
+      let uploadData = dataUrl;
 
-        // Cloudinary'e server-side upload
-        setUploading(true);
-        try {
-          const res = await fetch('/api/upload-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ base64: compressed, filename: file.name }),
-          });
-          const data = await res.json();
-          if (data.url) {
-            setUploadedUrl(data.url);
-          } else {
-            throw new Error(data.error || 'Yükleme başarısız');
-          }
-        } catch (err: any) {
-          setUploadError("Yükleme başarısız: " + err.message);
-        } finally {
-          setUploading(false);
+      if (isImage) {
+        // Görsel kalitesini koru, boyutu optimize et
+        await new Promise<void>(resolve => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const maxDim = 1200;
+            let w = img.width, h = img.height;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+              else { w = Math.round(w * maxDim / h); h = maxDim; }
+            }
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext("2d")!;
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.drawImage(img, 0, 0, w, h);
+            uploadData = canvas.toDataURL("image/jpeg", 0.92);
+            setPreview(uploadData);
+            resolve();
+          };
+          img.src = dataUrl;
+        });
+      }
+
+      setUploading(true);
+      try {
+        const res = await fetch('/api/upload-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ base64: uploadData, filename: file.name, mimeType: file.type }),
+        });
+        const data = await res.json();
+        if (data.url) {
+          setUploadedUrl(data.url);
+        } else {
+          throw new Error(data.error || 'Yükleme başarısız');
         }
-      };
-      img.src = dataUrl;
+      } catch (err: any) {
+        setUploadError("Yükleme başarısız: " + err.message);
+      } finally {
+        setUploading(false);
+      }
     };
     reader.readAsDataURL(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
+    e.preventDefault(); setIsDragging(false);
     const file = e.dataTransfer.files[0];
     if (file) handleFile(file);
   };
 
-  const handleDownload = (fmt: "png" | "svg") => {
+  const handleDownloadQR = (fmt: "png" | "svg") => {
     if (!qrDataUrl || !uploadedUrl) return;
+    const base = fileName.replace(/\.[^.]+$/, "") || "file";
     if (fmt === "png") {
-      const a = document.createElement("a");
-      a.href = qrDataUrl;
-      a.download = `qr_${imageName.replace(/\.[^.]+$/, "") || "image"}.png`;
-      a.click();
+      const a = document.createElement("a"); a.href = qrDataUrl; a.download = `qr_${base}.png`; a.click();
     } else {
       import("qrcode").then(mod => {
-        mod.default.toString(uploadedUrl, {
-          type: "svg", margin: 2,
-          color: { dark: fgColor, light: bgColor },
-          errorCorrectionLevel: errorLevel,
-        }).then(svg => {
-          const blob = new Blob([svg], { type: "image/svg+xml" });
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(blob);
-          a.download = `qr_${imageName.replace(/\.[^.]+$/, "") || "image"}.svg`;
-          a.click();
-          URL.revokeObjectURL(a.href);
-        });
+        mod.default.toString(uploadedUrl, { type: "svg", margin: 2, color: { dark: fgColor, light: bgColor }, errorCorrectionLevel: errorLevel })
+          .then(svg => {
+            const blob = new Blob([svg], { type: "image/svg+xml" });
+            const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `qr_${base}.svg`; a.click(); URL.revokeObjectURL(a.href);
+          });
       });
     }
   };
@@ -146,14 +155,16 @@ export default function ImageToQRPage() {
 
       <div style={{ textAlign: "center" }}>
         <div style={{ width: "70px", height: "70px", borderRadius: "18px", background: "linear-gradient(135deg, #f59e0b, #ef4444)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1.25rem", boxShadow: "0 8px 30px rgba(245,158,11,0.35)" }}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <path d="M8 13h2v2h-2z M12 13h4v2h-4z M8 17h8"/>
           </svg>
         </div>
         <h1 style={{ fontSize: "2.2rem", fontWeight: 800, background: "linear-gradient(135deg, #f59e0b, #ef4444)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: "0.5rem" }}>
-          Fotoğraf → QR
+          Dosya → QR
         </h1>
-        <p className="subtitle" style={{ margin: 0 }}>Fotoğrafı yükle → buluta gönder → QR kodu al.</p>
+        <p className="subtitle" style={{ margin: 0 }}>Fotoğraf, PDF, Word, ZIP veya herhangi bir dosyayı QR koda dönüştür.</p>
       </div>
 
       {/* Yükleme Alanı */}
@@ -162,7 +173,7 @@ export default function ImageToQRPage() {
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
       >
-        <p style={{ fontSize: "0.78rem", fontWeight: 600, opacity: 0.6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fotoğraf Seç</p>
+        <p style={{ fontSize: "0.78rem", fontWeight: 600, opacity: 0.6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Dosya Seç</p>
         <div
           onClick={() => fileRef.current?.click()}
           style={{
@@ -172,28 +183,34 @@ export default function ImageToQRPage() {
             transition: "all 0.2s ease",
           }}
         >
-          {image ? (
+          {preview ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
-              <img src={image} alt="Yüklenen" style={{ maxHeight: "150px", maxWidth: "100%", borderRadius: "8px", objectFit: "contain" }} />
-              <p style={{ fontSize: "0.82rem", opacity: 0.6 }}>{imageName} — değiştirmek için tıkla</p>
+              <img src={preview} alt="Önizleme" style={{ maxHeight: "150px", maxWidth: "100%", borderRadius: "8px", objectFit: "contain" }} />
+              <p style={{ fontSize: "0.82rem", opacity: 0.6 }}>{fileName} — değiştirmek için tıkla</p>
+            </div>
+          ) : fileIcon ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
+              <div style={{ fontSize: "3.5rem" }}>{fileIcon}</div>
+              <p style={{ fontWeight: 600, fontSize: "0.9rem" }}>{fileName}</p>
+              <p style={{ fontSize: "0.78rem", opacity: 0.5 }}>{fileMime} — değiştirmek için tıkla</p>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", opacity: 0.5 }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+              <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
               </svg>
-              <p style={{ fontSize: "0.88rem" }}>Fotoğraf sürükle veya tıkla</p>
-              <p style={{ fontSize: "0.75rem" }}>JPG, PNG, WebP, GIF</p>
+              <p style={{ fontSize: "0.9rem" }}>Dosya sürükle veya tıkla</p>
+              <p style={{ fontSize: "0.75rem" }}>Fotoğraf, PDF, Word, ZIP, ses, video — her şey</p>
             </div>
           )}
         </div>
-        <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+        <input ref={fileRef} type="file" accept="*/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
 
-        {/* Upload durumu */}
         {uploading && (
           <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", opacity: 0.7 }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={spin}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-            <span style={{ fontSize: "0.82rem", color: "#f59e0b" }}>Fotoğraf buluta yükleniyor...</span>
+            <span style={{ fontSize: "0.82rem", color: "#f59e0b" }}>Dosya yükleniyor...</span>
           </div>
         )}
         {uploadedUrl && !uploading && (
@@ -202,12 +219,10 @@ export default function ImageToQRPage() {
             <span style={{ fontSize: "0.82rem", color: "#4ade80" }}>Yüklendi — QR oluşturuldu ✓</span>
           </div>
         )}
-        {uploadError && (
-          <p style={{ fontSize: "0.82rem", color: "#ef4444" }}>{uploadError}</p>
-        )}
+        {uploadError && <p style={{ fontSize: "0.82rem", color: "#ef4444" }}>{uploadError}</p>}
       </div>
 
-      {/* Tasarım Ayarları */}
+      {/* QR Tasarımı */}
       {uploadedUrl && (
         <div className="glass-panel" style={{ width: "100%", padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
           <p style={{ fontSize: "0.78rem", fontWeight: 600, opacity: 0.6, textTransform: "uppercase", letterSpacing: "0.05em" }}>QR Tasarımı</p>
@@ -238,14 +253,13 @@ export default function ImageToQRPage() {
             <label style={{ fontSize: "0.75rem", opacity: 0.5, display: "block", marginBottom: "0.3rem" }}>Hata Düzeltme</label>
             <div style={{ display: "flex", gap: "0.3rem" }}>
               {(["L","M","Q","H"] as const).map(lvl => (
-                <button key={lvl} onClick={() => setErrorLevel(lvl)}
-                  style={{ flex: 1, padding: "0.4rem", borderRadius: "6px",
-                    border: errorLevel === lvl ? "1.5px solid #f59e0b" : "1.5px solid rgba(255,255,255,0.08)",
-                    background: errorLevel === lvl ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.03)",
-                    color: errorLevel === lvl ? "#f59e0b" : "rgba(255,255,255,0.5)",
-                    cursor: "pointer", fontSize: "0.82rem", fontWeight: 700 }}>
-                  {lvl}
-                </button>
+                <button key={lvl} onClick={() => setErrorLevel(lvl)} style={{
+                  flex: 1, padding: "0.4rem", borderRadius: "6px",
+                  border: errorLevel === lvl ? "1.5px solid #f59e0b" : "1.5px solid rgba(255,255,255,0.08)",
+                  background: errorLevel === lvl ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.03)",
+                  color: errorLevel === lvl ? "#f59e0b" : "rgba(255,255,255,0.5)",
+                  cursor: "pointer", fontSize: "0.82rem", fontWeight: 700,
+                }}>{lvl}</button>
               ))}
             </div>
           </div>
@@ -260,21 +274,21 @@ export default function ImageToQRPage() {
             {generating ? (
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={fgColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={spin}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
             ) : qrDataUrl ? (
-              <img src={qrDataUrl} alt="QR Kod" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              <img src={qrDataUrl} alt="QR" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             ) : null}
           </div>
           {qrDataUrl && (
             <div style={{ display: "flex", gap: "0.5rem", width: "100%" }}>
-              <button onClick={() => handleDownload("png")} className="btn" style={{ flex: 1, background: "linear-gradient(135deg, #f59e0b, #ef4444)", fontSize: "0.88rem", padding: "0.7rem" }}>
+              <button onClick={() => handleDownloadQR("png")} className="btn" style={{ flex: 1, background: "linear-gradient(135deg, #f59e0b, #ef4444)", fontSize: "0.88rem", padding: "0.7rem" }}>
                 PNG İndir
               </button>
-              <button onClick={() => handleDownload("svg")} className="btn btn-secondary" style={{ flex: 1, fontSize: "0.88rem", padding: "0.7rem" }}>
+              <button onClick={() => handleDownloadQR("svg")} className="btn btn-secondary" style={{ flex: 1, fontSize: "0.88rem", padding: "0.7rem" }}>
                 SVG İndir
               </button>
             </div>
           )}
           <p style={{ fontSize: "0.72rem", opacity: 0.35, textAlign: "center" }}>
-            QR tarandığında kendi sayfanda fotoğraf açılır ve indirilebilir.
+            QR tarandığında dosya sayfası açılır ve indirilebilir.
           </p>
         </div>
       )}
