@@ -58,16 +58,6 @@ export default function Home() {
       icon: <TIcon size={34} />
     },
     {
-      name: "YouTube",
-      desc: "Video ve Shorts'ları yüksek kalitede indirme",
-      href: "/youtube",
-      color: "#FF0000",
-      border: "none",
-      shadow: "rgba(255,0,0,0.3)",
-      glow: "#FF0000",
-      icon: <YTIcon size={34} />
-    },
-    {
       name: "Instagram",
       desc: "Reels videoları, tekil ve çoklu fotoğraf gönderileri indirme",
       href: "/instagram",
