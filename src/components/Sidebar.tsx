@@ -241,7 +241,7 @@ export default function Sidebar() {
         </div>
 
         {/* ── Nav Slider (Yatay Sayfa Geçişli Alan) ── */}
-        <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+        <div style={{ flex: 1, overflow: "hidden", position: "relative", minHeight: 0 }}>
           <div style={{
             display: "flex",
             width: "200%",
@@ -257,7 +257,9 @@ export default function Sidebar() {
               display: "flex",
               flexDirection: "column",
               gap: "0.5rem",
-              boxSizing: "border-box"
+              boxSizing: "border-box",
+              overflowY: "auto",
+              overflowX: "hidden",
             }}>
               {menuItems.map((item, idx) => {
                 const isActive = pathname === item.href;
@@ -321,7 +323,9 @@ export default function Sidebar() {
               display: "flex",
               flexDirection: "column",
               gap: "0.5rem",
-              boxSizing: "border-box"
+              boxSizing: "border-box",
+              overflowY: "auto",
+              overflowX: "hidden",
             }}>
               {/* Görsel Dönüştürücü */}
               {(() => {
