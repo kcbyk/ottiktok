@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Imgur anonim upload — Client-ID ile key gerektirmez
-// https://i.imgur.com/... URL'leri evrensel, SSL sorunsuz
 const IMGUR_CLIENT_ID = process.env.IMGUR_CLIENT_ID || '546c25a59c58ad7';
 
 export async function POST(req: NextRequest) {
@@ -9,7 +7,6 @@ export async function POST(req: NextRequest) {
     const { base64 } = await req.json();
     if (!base64) return NextResponse.json({ error: 'base64 gerekli' }, { status: 400 });
 
-    // data URL prefix varsa kaldır
     const b64 = base64.includes(',') ? base64.split(',')[1] : base64;
 
     const body = new URLSearchParams();
@@ -28,7 +25,14 @@ export async function POST(req: NextRequest) {
     const data = await res.json();
 
     if (data.data?.link) {
-      return NextResponse.json({ url: data.data.link });
+      const imgUrl = data.data.link; // https://i.imgur.com/xxxx.jpg
+      // QR için: kendi temiz fotoğraf sayfamıza yönlendir
+      // URL'yi encode ederek kendi /photo/[id] sayfamıza geç
+      const imgId = data.data.id || imgUrl.split('/').pop()?.split('.')[0] || 'img';
+      const host = req.headers.get('host') || 'localhost:3000';
+      const protocol = host.includes('localhost') ? 'http' : 'https';
+      const viewUrl = `${protocol}://${host}/photo/${imgId}?url=${encodeURIComponent(imgUrl)}`;
+      return NextResponse.json({ url: viewUrl, imgUrl });
     }
 
     return NextResponse.json(
