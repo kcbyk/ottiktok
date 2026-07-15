@@ -3,22 +3,21 @@
 import { useState } from "react";
 import Link from "next/link";
 
-// YouTube CDN URL'leri signed — mobilde <a download> çalışmaz çünkü cross-origin.
-// Çözüm: API'den taze URL al (Vercel IP'siyle signed), window.open ile aç.
-// window.open her platformda (mobil dahil) çalışır.
+// youtube-dl endpoint'i RapidAPI URL'sini server'dan proxy eder.
+// Eğer stream başarısız olursa JSON {url} döner, onu window.open ile açarız.
 async function openDirectDownload(url: string, filename: string, videoId?: string, itag?: string) {
   if (videoId && itag) {
-    try {
-      // Taze URL al (itag ile)
-      const res = await fetch(`/api/youtube-dl?videoId=${encodeURIComponent(videoId)}&itag=${encodeURIComponent(itag)}`);
-      const data = await res.json();
-      if (data.url) {
-        window.open(data.url, '_blank');
-        return;
-      }
-    } catch (_) {}
+    // Server proxy endpoint'ine <a> ile git — tarayıcı stream'i indirir
+    const href = `/api/youtube-dl?videoId=${encodeURIComponent(videoId)}&itag=${encodeURIComponent(itag)}&filename=${encodeURIComponent(filename)}`;
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return;
   }
-  // Fallback: mevcut URL'yi direkt aç
+  // Fallback
   window.open(url, '_blank');
 }
 

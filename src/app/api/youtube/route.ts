@@ -82,7 +82,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Video bulunamadı veya erişim kısıtlı.' }, { status: 400 });
     }
 
-    // Ses+video birleşik formatlar (360p genelde)
+    // Sadece ses+video birleşik formatlar (bunlar sesli ve genelde 360p/720p)
+    // Büyük dosyalar Vercel'de timeout'a girer, sadece makul boyutları sun
     const combinedFormats = (streamData.formats || [])
       .filter((f: any) => f.qualityLabel && f.url && f.mimeType?.includes('video/mp4'))
       .map((f: any) => {
@@ -90,20 +91,22 @@ export async function POST(request: Request) {
         return { quality: f.qualityLabel + ' (Sesli)', url: f.url, itag: urlObj.searchParams.get('itag') };
       });
 
-    // Yüksek kalite video (ses yok)
+    // Yüksek kalite video (ses yok) - sadece 720p ve altı
     const seen = new Set<string>();
     const adaptiveVideoFormats = (streamData.adaptiveFormats || [])
       .filter((f: any) => {
         if (!f.qualityLabel || !f.url || !f.mimeType?.includes('video/mp4')) return false;
         if (seen.has(f.qualityLabel)) return false;
+        // 1080p ve üstü Vercel'de timeout'a girer — çıkar
+        if (['1080p', '1440p', '2160p'].includes(f.qualityLabel)) return false;
         seen.add(f.qualityLabel);
         return true;
       })
       .sort((a: any, b: any) => {
-        const order = ['1080p', '720p', '480p', '360p', '240p', '144p'];
+        const order = ['720p', '480p', '360p', '240p', '144p'];
         return order.indexOf(a.qualityLabel) - order.indexOf(b.qualityLabel);
       })
-      .slice(0, 4)
+      .slice(0, 3)
       .map((f: any) => {
         const urlObj = new URL(f.url);
         return { quality: f.qualityLabel + ' (Sessiz)', url: f.url, itag: urlObj.searchParams.get('itag') };
