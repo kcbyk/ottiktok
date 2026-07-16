@@ -104,26 +104,61 @@ export default function FileToQRPage() {
       });
       const { signature, timestamp, folder, cloud, apiKey } = await signRes.json();
 
-      // 2. Dosyayı direkt Cloudinary'ye gönder (multipart/form-data)
+      // 2. Dosyayı direkt Cloudinary'ye gönder
+      // 10MB üzeri dosyalar için chunked upload gerekli
       const isAudio = file.type.startsWith('audio/');
       const isVideo = file.type.startsWith('video/');
       let resourceType = 'image';
-      if (isAudio) resourceType = 'raw';
+      if (isAudio || (!isImage && !isVideo)) resourceType = 'raw';
       else if (isVideo) resourceType = 'video';
-      else if (!isImage) resourceType = 'raw';
 
-      const form = new FormData();
-      form.append('file', file);
-      form.append('api_key', apiKey);
-      form.append('timestamp', timestamp);
-      form.append('signature', signature);
-      form.append('folder', folder);
+      const CHUNK_SIZE = 9 * 1024 * 1024; // 9MB chunk
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${cloud}/${resourceType}/upload`;
 
-      const uploadRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloud}/${resourceType}/upload`,
-        { method: 'POST', body: form }
-      );
-      const data = await uploadRes.json();
+      let data: any;
+
+      if (file.size <= CHUNK_SIZE) {
+        // Küçük dosya — direkt upload
+        const form = new FormData();
+        form.append('file', file);
+        form.append('api_key', apiKey);
+        form.append('timestamp', timestamp);
+        form.append('signature', signature);
+        form.append('folder', folder);
+        const uploadRes = await fetch(uploadUrl, { method: 'POST', body: form });
+        data = await uploadRes.json();
+      } else {
+        // Büyük dosya — chunked upload
+        const uniqueUploadId = `uq-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const totalSize = file.size;
+        let start = 0;
+
+        while (start < totalSize) {
+          const end = Math.min(start + CHUNK_SIZE, totalSize);
+          const chunk = file.slice(start, end);
+          const form = new FormData();
+          form.append('file', chunk);
+          form.append('api_key', apiKey);
+          form.append('timestamp', timestamp);
+          form.append('signature', signature);
+          form.append('folder', folder);
+
+          const chunkRes = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+              'X-Unique-Upload-Id': uniqueUploadId,
+              'Content-Range': `bytes ${start}-${end - 1}/${totalSize}`,
+            },
+            body: form,
+          });
+
+          const chunkData = await chunkRes.json();
+          if (end === totalSize) {
+            data = chunkData; // Son chunk — final sonuç
+          }
+          start = end;
+        }
+      }
 
       if (data.secure_url) {
         const id = data.public_id.split('/').pop() || 'f';
