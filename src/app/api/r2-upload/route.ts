@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID || '';
-const CF_API_TOKEN  = process.env.CF_API_TOKEN  || '';
+// Edge runtime — Vercel'in 4.5MB body limitini aşmak için
+export const runtime = 'edge';
+
+const CF_ACCOUNT_ID  = process.env.CF_ACCOUNT_ID || '';
+const CF_API_TOKEN   = process.env.CF_API_TOKEN  || '';
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'ottiktok-files';
 const R2_PUBLIC_URL  = process.env.R2_PUBLIC_URL  || 'https://pub-f0666a218521401bbfb12857551a4628.r2.dev';
 
@@ -9,7 +12,6 @@ const MAX_SIZE = 500 * 1024 * 1024; // 500 MB
 
 export async function POST(req: NextRequest) {
   try {
-    // Ortam değişkeni kontrolü
     if (!CF_ACCOUNT_ID || !CF_API_TOKEN) {
       return NextResponse.json(
         { error: 'R2 yapılandırılmamış — CF_ACCOUNT_ID veya CF_API_TOKEN eksik' },
@@ -81,7 +83,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-
-export const config = {
-  api: { bodyParser: false },
-};
