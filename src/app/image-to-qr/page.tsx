@@ -93,83 +93,70 @@ export default function FileToQRPage() {
       reader.readAsDataURL(file);
     }
 
-    // Cloudinary'e direkt yükle (client-side) — Vercel body limitini aşmaz
     setUploading(true);
     try {
-      // 1. Server'dan imza al
-      const signRes = await fetch('/api/cloudinary-sign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mimeType: file.type, filename: file.name }),
-      });
-      const { signature, timestamp, folder, cloud, apiKey } = await signRes.json();
+      const LIMIT = 9 * 1024 * 1024; // 9MB
 
-      // 2. Dosyayı direkt Cloudinary'ye gönder
-      // 10MB üzeri dosyalar için chunked upload gerekli
-      const isAudio = file.type.startsWith('audio/');
-      const isVideo = file.type.startsWith('video/');
-      let resourceType = 'image';
-      if (isAudio || (!isImage && !isVideo)) resourceType = 'raw';
-      else if (isVideo) resourceType = 'video';
+      if (file.size <= LIMIT) {
+        // Küçük dosya: Cloudinary direkt upload
+        const signRes = await fetch('/api/cloudinary-sign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mimeType: file.type }),
+        });
+        const { signature, timestamp, folder, cloud, apiKey } = await signRes.json();
 
-      const CHUNK_SIZE = 9 * 1024 * 1024; // 9MB chunk
-      const uploadUrl = `https://api.cloudinary.com/v1_1/${cloud}/${resourceType}/upload`;
+        const isAudio = file.type.startsWith('audio/');
+        const isVideo = file.type.startsWith('video/');
+        let resourceType = 'image';
+        if (isAudio || (!isImage && !isVideo)) resourceType = 'raw';
+        else if (isVideo) resourceType = 'video';
 
-      let data: any;
-
-      if (file.size <= CHUNK_SIZE) {
-        // Küçük dosya — direkt upload
         const form = new FormData();
         form.append('file', file);
         form.append('api_key', apiKey);
         form.append('timestamp', timestamp);
         form.append('signature', signature);
         form.append('folder', folder);
-        const uploadRes = await fetch(uploadUrl, { method: 'POST', body: form });
-        data = await uploadRes.json();
-      } else {
-        // Büyük dosya — chunked upload
-        const uniqueUploadId = `uq-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        const totalSize = file.size;
-        let start = 0;
 
-        while (start < totalSize) {
-          const end = Math.min(start + CHUNK_SIZE, totalSize);
-          const chunk = file.slice(start, end);
-          const form = new FormData();
-          form.append('file', chunk);
-          form.append('api_key', apiKey);
-          form.append('timestamp', timestamp);
-          form.append('signature', signature);
-          form.append('folder', folder);
+        const uploadRes = await fetch(
+          `https://api.cloudinary.com/v1_1/${cloud}/${resourceType}/upload`,
+          { method: 'POST', body: form }
+        );
+        const data = await uploadRes.json();
 
-          const chunkRes = await fetch(uploadUrl, {
-            method: 'POST',
-            headers: {
-              'X-Unique-Upload-Id': uniqueUploadId,
-              'Content-Range': `bytes ${start}-${end - 1}/${totalSize}`,
-            },
-            body: form,
-          });
-
-          const chunkData = await chunkRes.json();
-          if (end === totalSize) {
-            data = chunkData; // Son chunk — final sonuç
-          }
-          start = end;
+        if (data.secure_url) {
+          const id = data.public_id.split('/').pop() || 'f';
+          const fn = encodeURIComponent(file.name);
+          const imgUrl = encodeURIComponent(data.secure_url);
+          const type = encodeURIComponent(file.type);
+          const viewPath = isImage ? 'photo' : 'file';
+          setUploadedUrl(`${window.location.origin}/${viewPath}/${id}?url=${imgUrl}&fn=${fn}&type=${type}`);
+        } else {
+          throw new Error(data.error?.message || 'Cloudinary yükleme başarısız');
         }
-      }
-
-      if (data.secure_url) {
-        const id = data.public_id.split('/').pop() || 'f';
-        const fn = encodeURIComponent(file.name);
-        const imgUrl = encodeURIComponent(data.secure_url);
-        const type = encodeURIComponent(file.type);
-        const viewPath = isImage ? 'photo' : 'file';
-        const viewUrl = `${window.location.origin}/${viewPath}/${id}?url=${imgUrl}&fn=${fn}&type=${type}`;
-        setUploadedUrl(viewUrl);
       } else {
-        throw new Error(data.error?.message || 'Yükleme başarısız');
+        // Büyük dosya: Dropbox
+        const dropboxForm = new FormData();
+        dropboxForm.append('file', file);
+        dropboxForm.append('filename', file.name);
+
+        const uploadRes = await fetch('/api/dropbox-upload', {
+          method: 'POST',
+          body: dropboxForm,
+        });
+        const data = await uploadRes.json();
+
+        if (data.url) {
+          const id = Date.now().toString(36);
+          const fn = encodeURIComponent(file.name);
+          const fileUrl = encodeURIComponent(data.url);
+          const type = encodeURIComponent(file.type);
+          const viewPath = isImage ? 'photo' : 'file';
+          setUploadedUrl(`${window.location.origin}/${viewPath}/${id}?url=${fileUrl}&fn=${fn}&type=${type}`);
+        } else {
+          throw new Error(data.error || 'Dropbox yükleme başarısız');
+        }
       }
     } catch (err: any) {
       setUploadError("Yükleme başarısız: " + err.message);
