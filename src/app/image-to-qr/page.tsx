@@ -148,12 +148,12 @@ export default function FileToQRPage() {
           throw new Error(signData.error || 'Upload URL alınamadı');
         }
 
-        // 2) Tarayıcıdan direkt Supabase'e PUT
+        // 2) Tarayıcıdan direkt Supabase'e PUT (token header ile)
         const putRes = await fetch(signData.signedUrl, {
           method: 'PUT',
           headers: {
             'Content-Type': file.type || 'application/octet-stream',
-            'x-upsert': 'false',
+            'Authorization': `Bearer ${signData.token}`,
           },
           body: file,
         });
