@@ -265,21 +265,30 @@ export default function QRReaderPage() {
           )}
 
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-            {/* Dosya share link ise büyük İndir butonu */}
+            {/* Dosya share link ise büyük İndir + Sayfada Aç butonları */}
             {isFile && (
-              <button
-                onClick={handleDownload}
-                disabled={downloading}
-                className="btn"
-                style={{ flex: 1, background: "linear-gradient(135deg, #10b981, #0ea5e9)", fontSize: "0.88rem", padding: "0.7rem", minWidth: "120px", opacity: downloading ? 0.7 : 1 }}
-              >
-                {downloading ? (
-                  <span style={{ display: "flex", alignItems: "center", gap: "0.4rem", justifyContent: "center" }}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={spin}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                    İndiriliyor...
-                  </span>
-                ) : "⬇ İndir"}
-              </button>
+              <>
+                <button
+                  onClick={() => window.open(result, '_blank', 'noopener,noreferrer')}
+                  className="btn"
+                  style={{ flex: 1, background: "linear-gradient(135deg, #10b981, #0ea5e9)", fontSize: "0.88rem", padding: "0.7rem", minWidth: "120px" }}
+                >
+                  Sayfada Aç
+                </button>
+                <button
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="btn btn-secondary"
+                  style={{ flex: 1, fontSize: "0.88rem", padding: "0.7rem", minWidth: "100px", opacity: downloading ? 0.7 : 1 }}
+                >
+                  {downloading ? (
+                    <span style={{ display: "flex", alignItems: "center", gap: "0.4rem", justifyContent: "center" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={spin}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                      İndiriliyor...
+                    </span>
+                  ) : "⬇ İndir"}
+                </button>
+              </>
             )}
 
             {/* Normal URL ise Sayfayı Aç + Dosyayı İndir butonları */}
