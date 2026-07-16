@@ -62,12 +62,10 @@ export default function FileToQRPage() {
     setQrDataUrl(""); setUploadedUrl(""); setUploadError("");
     setPreview(null); setFileIcon(null);
 
-    const icon = getFileIcon(file.type, file.name);
-    if (icon) setFileIcon(icon);
-
     const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
 
-    // Görsel için önizleme oluştur
+    // Görsel veya video için önizleme oluştur
     if (isImage) {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -91,6 +89,26 @@ export default function FileToQRPage() {
         img.src = dataUrl;
       };
       reader.readAsDataURL(file);
+    } else if (isVideo) {
+      // Video için thumbnail oluştur
+      const url = URL.createObjectURL(file);
+      const video = document.createElement("video");
+      video.src = url;
+      video.currentTime = 1;
+      video.muted = true;
+      video.onloadeddata = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 360;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        setPreview(canvas.toDataURL("image/jpeg", 0.85));
+        URL.revokeObjectURL(url);
+      };
+      video.onerror = () => URL.revokeObjectURL(url);
+    } else {
+      const icon = getFileIcon(file.type, file.name);
+      if (icon) setFileIcon(icon);
     }
 
     setUploading(true);
@@ -238,14 +256,49 @@ export default function FileToQRPage() {
         >
           {preview ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
-              <img src={preview} alt="Önizleme" style={{ maxHeight: "150px", maxWidth: "100%", borderRadius: "8px", objectFit: "contain" }} />
-              <p style={{ fontSize: "0.82rem", opacity: 0.6 }}>{fileName} — değiştirmek için tıkla</p>
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <img src={preview} alt="Önizleme" style={{ maxHeight: "180px", maxWidth: "100%", borderRadius: "10px", objectFit: "contain", boxShadow: "0 4px 20px rgba(0,0,0,0.4)" }} />
+                {fileMime.startsWith("video/") && (
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <p style={{ fontSize: "0.82rem", opacity: 0.6, fontWeight: 500 }}>{fileName} — değiştirmek için tıkla</p>
             </div>
           ) : fileIcon ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
-              <div style={{ fontSize: "3.5rem" }}>{fileIcon}</div>
-              <p style={{ fontWeight: 600, fontSize: "0.9rem" }}>{fileName}</p>
-              <p style={{ fontSize: "0.78rem", opacity: 0.5 }}>{fileMime} — değiştirmek için tıkla</p>
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.5rem 1rem", background: "rgba(255,255,255,0.04)", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.08)", width: "100%", boxSizing: "border-box" }}>
+              {/* Dosya tipi SVG ikonu */}
+              <div style={{ width: "48px", height: "56px", flexShrink: 0, position: "relative" }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="56" viewBox="0 0 48 56" fill="none">
+                  <rect width="48" height="56" rx="6" fill={
+                    fileMime.startsWith('audio/') ? '#8b5cf6' :
+                    fileMime.includes('pdf') ? '#ef4444' :
+                    fileMime.includes('word') ? '#3b82f6' :
+                    fileMime.includes('excel') ? '#22c55e' :
+                    fileMime.includes('zip') || fileMime.includes('rar') ? '#f59e0b' :
+                    fileMime.includes('text') ? '#94a3b8' : '#6366f1'
+                  } opacity="0.15"/>
+                  <rect x="0.5" y="0.5" width="47" height="55" rx="5.5" stroke={
+                    fileMime.startsWith('audio/') ? '#8b5cf6' :
+                    fileMime.includes('pdf') ? '#ef4444' :
+                    fileMime.includes('word') ? '#3b82f6' :
+                    fileMime.includes('excel') ? '#22c55e' :
+                    fileMime.includes('zip') || fileMime.includes('rar') ? '#f59e0b' :
+                    fileMime.includes('text') ? '#94a3b8' : '#6366f1'
+                  } opacity="0.4"/>
+                  <text x="24" y="36" textAnchor="middle" fontSize="22" fill="white" opacity="0.9">
+                    {fileIcon}
+                  </text>
+                </svg>
+              </div>
+              <div style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
+                <p style={{ fontWeight: 600, fontSize: "0.9rem", wordBreak: "break-all", marginBottom: "0.2rem" }}>{fileName}</p>
+                <p style={{ fontSize: "0.72rem", opacity: 0.45 }}>{fileMime || "Bilinmeyen format"}</p>
+              </div>
+              <p style={{ fontSize: "0.72rem", opacity: 0.4, flexShrink: 0 }}>değiştirmek için tıkla</p>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", opacity: 0.5 }}>
