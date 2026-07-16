@@ -76,43 +76,61 @@ export default function QRReaderPage() {
     setError("");
 
     const reader = new FileReader();
-    reader.onload = async (e) => {
+
+    reader.onerror = () => {
+      setError("Dosya okunamadı.");
+      setLoading(false);
+    };
+
+    reader.onload = (e) => {
       const dataUrl = e.target?.result as string;
       setImagePrev(dataUrl);
-      try {
-        const img = new Image();
-        img.onload = async () => {
+
+      const img = new Image();
+
+      img.onerror = () => {
+        setError("Görsel yüklenemedi.");
+        setLoading(false);
+      };
+
+      img.onload = () => {
+        try {
           const canvas = document.createElement("canvas");
           canvas.width = img.width;
           canvas.height = img.height;
-          const ctx = canvas.getContext("2d")!;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) { setError("Canvas hatası."); setLoading(false); return; }
           ctx.drawImage(img, 0, 0);
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const jsQR = (await import("jsqr")).default;
-          const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: "dontInvert",
-          });
-          if (code) {
-            setResult(code.data);
-          } else {
-            const code2 = jsQR(imageData.data, imageData.width, imageData.height, {
-              inversionAttempts: "onlyInvert",
-            });
-            if (code2) {
-              setResult(code2.data);
-            } else {
-              setError("QR kod bulunamadı. Görsel net ve tam olduğundan emin olun.");
+
+          import("jsqr").then(({ default: jsQR }) => {
+            try {
+              const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: "attemptBoth",
+              });
+              if (code) {
+                setResult(code.data);
+              } else {
+                setError("QR kod bulunamadı. Görsel net ve tam olduğundan emin olun.");
+              }
+            } catch (err: any) {
+              setError("Okuma hatası: " + err.message);
+            } finally {
+              setLoading(false);
             }
-          }
+          }).catch(err => {
+            setError("jsQR yüklenemedi: " + err.message);
+            setLoading(false);
+          });
+        } catch (err: any) {
+          setError("İşlem hatası: " + err.message);
           setLoading(false);
-        };
-        img.onerror = () => { setError("Görsel yüklenemedi."); setLoading(false); };
-        img.src = dataUrl;
-      } catch (err: any) {
-        setError("Okuma hatası: " + err.message);
-        setLoading(false);
-      }
+        }
+      };
+
+      img.src = dataUrl;
     };
+
     reader.readAsDataURL(file);
   };
 
