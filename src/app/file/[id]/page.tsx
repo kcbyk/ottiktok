@@ -37,23 +37,21 @@ function FileContent() {
     if (!fileUrl) return;
     setDownloading(true);
     try {
-      const res = await fetch(fileUrl);
-      const blob = await res.blob();
+      // Supabase public URL'ine ?download=dosyaadı ekle — attachment header zorlar
+      const downloadUrl = fileUrl.includes('supabase')
+        ? `${fileUrl}?download=${encodeURIComponent(filename)}`
+        : fileUrl;
+
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
+      a.href = downloadUrl;
       a.download = filename;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
-    } catch {
-      const a = document.createElement("a");
-      a.href = fileUrl;
-      a.download = filename;
-      a.target = "_blank";
-      a.click();
     } finally {
-      setDownloading(false);
+      setTimeout(() => setDownloading(false), 1000);
     }
   };
 

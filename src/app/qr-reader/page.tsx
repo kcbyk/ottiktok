@@ -7,11 +7,62 @@ function isUrl(text: string) {
   return /^https?:\/\//i.test(text) || /^www\./i.test(text);
 }
 
+// URL'den dosya adını çıkar
+function getFilenameFromUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    // ?fn= parametresi varsa onu kullan (bizim share link formatımız)
+    const fn = u.searchParams.get("fn");
+    if (fn) return decodeURIComponent(fn);
+    // Yoksa path'in son parçasını al
+    const parts = u.pathname.split("/");
+    const last = parts[parts.length - 1];
+    if (last && last.includes(".")) return decodeURIComponent(last);
+    return "dosya";
+  } catch {
+    return "dosya";
+  }
+}
+
+// URL'den MIME type çıkar
+function getMimeFromUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const type = u.searchParams.get("type");
+    if (type) return decodeURIComponent(type);
+  } catch {}
+  return "";
+}
+
+function getFileIcon(mimeType: string, filename: string) {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  if (mimeType.startsWith('video/')) return '🎬';
+  if (mimeType.startsWith('audio/')) return '🎵';
+  if (mimeType.includes('pdf') || ext === 'pdf') return '📄';
+  if (mimeType.includes('word') || ['docx','doc'].includes(ext)) return '📝';
+  if (mimeType.includes('excel') || ['xlsx','xls'].includes(ext)) return '📊';
+  if (['zip','rar','7z'].includes(ext)) return '🗜️';
+  if (mimeType.includes('text') || ext === 'txt') return '📃';
+  if (mimeType.startsWith('image/')) return '🖼️';
+  return '📁';
+}
+
+// Bizim /file/[id] share link'i mi?
+function isShareLink(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.pathname.startsWith('/file/') && u.searchParams.has('url');
+  } catch {
+    return false;
+  }
+}
+
 export default function QRReaderPage() {
   const [result, setResult] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [imagePrev, setImagePrev] = useState<string>("");
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -79,7 +130,45 @@ export default function QRReaderPage() {
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
+  // QR'dan gelen dosyayı indir — /api/force-download proxy üzerinden
+  const handleDownload = () => {
+    if (!result) return;
+    setDownloading(true);
+
+    try {
+      let fileUrl = result;
+      let filename = "dosya";
+
+      // Bizim share link formatımızsa direkt URL ve dosya adını çıkar
+      if (isShareLink(result)) {
+        const u = new URL(result);
+        const rawUrl = u.searchParams.get("url");
+        if (rawUrl) fileUrl = decodeURIComponent(rawUrl);
+        filename = getFilenameFromUrl(result);
+      } else {
+        filename = getFilenameFromUrl(result);
+      }
+
+      const proxyUrl = `/api/force-download?url=${encodeURIComponent(fileUrl)}&filename=${encodeURIComponent(filename)}`;
+      const a = document.createElement("a");
+      a.href = proxyUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } finally {
+      setTimeout(() => setDownloading(false), 1500);
+    }
+  };
+
   const spin = { animation: "spin 1s linear infinite" } as React.CSSProperties;
+
+  // QR sonucu için dosya bilgileri
+  const filename = result ? getFilenameFromUrl(result) : "";
+  const mimeType = result ? getMimeFromUrl(result) : "";
+  const fileIcon = filename ? getFileIcon(mimeType, filename) : "📁";
+  const isFile = isShareLink(result);
+  const isAnyUrl = isUrl(result);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem", alignItems: "center", maxWidth: "600px", margin: "0 auto" }}>
@@ -100,7 +189,7 @@ export default function QRReaderPage() {
         <h1 style={{ fontSize: "2.2rem", fontWeight: 800, background: "linear-gradient(135deg, #10b981, #0ea5e9)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: "0.5rem" }}>
           QR Okuyucu
         </h1>
-        <p className="subtitle" style={{ margin: 0 }}>QR kod görselini yükle — içeriği anında oku ve aç.</p>
+        <p className="subtitle" style={{ margin: 0 }}>QR kod görselini yükle — dosyayı anında indir veya linki aç.</p>
       </div>
 
       <div className="glass-panel" style={{ width: "100%", padding: "1.5rem" }}
@@ -156,16 +245,56 @@ export default function QRReaderPage() {
             <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#10b981", flexShrink: 0 }} />
             <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "#10b981", textTransform: "uppercase", letterSpacing: "0.05em" }}>QR Okundu</p>
           </div>
-          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "10px", padding: "1rem", border: "1px solid rgba(255,255,255,0.08)", wordBreak: "break-all" }}>
-            <p style={{ fontSize: "0.95rem", lineHeight: "1.6", color: isUrl(result) ? "#10b981" : "rgba(255,255,255,0.9)" }}>{result}</p>
-          </div>
+
+          {/* Dosya share link ise dosya kartı göster */}
+          {isFile && (
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem", background: "rgba(255,255,255,0.04)", borderRadius: "10px", padding: "0.85rem 1rem", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div style={{ fontSize: "2rem", lineHeight: 1 }}>{fileIcon}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontWeight: 600, fontSize: "0.9rem", wordBreak: "break-all" }}>{filename}</p>
+                {mimeType && <p style={{ fontSize: "0.72rem", opacity: 0.45, marginTop: "2px" }}>{mimeType}</p>}
+              </div>
+            </div>
+          )}
+
+          {/* URL metni */}
+          {!isFile && (
+            <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "10px", padding: "1rem", border: "1px solid rgba(255,255,255,0.08)", wordBreak: "break-all" }}>
+              <p style={{ fontSize: "0.95rem", lineHeight: "1.6", color: isAnyUrl ? "#10b981" : "rgba(255,255,255,0.9)" }}>{result}</p>
+            </div>
+          )}
+
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-            {isUrl(result) && (
-              <button onClick={handleOpen} className="btn" style={{ flex: 1, background: "linear-gradient(135deg, #10b981, #0ea5e9)", fontSize: "0.88rem", padding: "0.7rem", minWidth: "120px" }}>
-                Sayfayı Aç
+            {/* Dosya share link ise büyük İndir butonu */}
+            {isFile && (
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                className="btn"
+                style={{ flex: 1, background: "linear-gradient(135deg, #10b981, #0ea5e9)", fontSize: "0.88rem", padding: "0.7rem", minWidth: "120px", opacity: downloading ? 0.7 : 1 }}
+              >
+                {downloading ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: "0.4rem", justifyContent: "center" }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={spin}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                    İndiriliyor...
+                  </span>
+                ) : "⬇ İndir"}
               </button>
             )}
-            <button onClick={handleCopy} className="btn btn-secondary" style={{ flex: 1, fontSize: "0.88rem", padding: "0.7rem", minWidth: "120px" }}>
+
+            {/* Normal URL ise Sayfayı Aç + Dosyayı İndir butonları */}
+            {!isFile && isAnyUrl && (
+              <>
+                <button onClick={handleOpen} className="btn" style={{ flex: 1, background: "linear-gradient(135deg, #10b981, #0ea5e9)", fontSize: "0.88rem", padding: "0.7rem", minWidth: "120px" }}>
+                  Sayfayı Aç
+                </button>
+                <button onClick={handleDownload} disabled={downloading} className="btn btn-secondary" style={{ flex: 1, fontSize: "0.88rem", padding: "0.7rem", minWidth: "120px", opacity: downloading ? 0.7 : 1 }}>
+                  {downloading ? "İndiriliyor..." : "⬇ İndir"}
+                </button>
+              </>
+            )}
+
+            <button onClick={handleCopy} className="btn btn-secondary" style={{ flex: 1, fontSize: "0.88rem", padding: "0.7rem", minWidth: "100px" }}>
               Kopyala
             </button>
             <button onClick={() => { setResult(""); setError(""); setImagePrev(""); }} className="btn btn-secondary" style={{ flex: "0 0 auto", fontSize: "0.88rem", padding: "0.7rem 1rem" }}>
