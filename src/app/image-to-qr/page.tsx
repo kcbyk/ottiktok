@@ -95,10 +95,10 @@ export default function FileToQRPage() {
 
     setUploading(true);
     try {
-      const LIMIT = 9 * 1024 * 1024; // 9MB
+      const CLOUDINARY_LIMIT = 9 * 1024 * 1024; // 9MB — Cloudinary için güvenli sınır
 
-      if (file.size <= LIMIT) {
-        // Küçük dosya: Cloudinary direkt upload
+      if (file.size <= CLOUDINARY_LIMIT) {
+        // Küçük dosya: Cloudinary
         const signRes = await fetch('/api/cloudinary-sign', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -136,26 +136,20 @@ export default function FileToQRPage() {
           throw new Error(data.error?.message || 'Cloudinary yükleme başarısız');
         }
       } else {
-        // Büyük dosya: Dropbox
-        const dropboxForm = new FormData();
-        dropboxForm.append('file', file);
-        dropboxForm.append('filename', file.name);
+        // Büyük dosya (>9MB): Cloudflare R2
+        const r2Form = new FormData();
+        r2Form.append('file', file);
 
-        const uploadRes = await fetch('/api/dropbox-upload', {
+        const uploadRes = await fetch('/api/r2-upload', {
           method: 'POST',
-          body: dropboxForm,
+          body: r2Form,
         });
         const data = await uploadRes.json();
 
-        if (data.url) {
-          const id = Date.now().toString(36);
-          const fn = encodeURIComponent(file.name);
-          const fileUrl = encodeURIComponent(data.url);
-          const type = encodeURIComponent(file.type);
-          const viewPath = isImage ? 'photo' : 'file';
-          setUploadedUrl(`${window.location.origin}/${viewPath}/${id}?url=${fileUrl}&fn=${fn}&type=${type}`);
+        if (data.shareLink) {
+          setUploadedUrl(data.shareLink);
         } else {
-          throw new Error(data.error || 'Dropbox yükleme başarısız');
+          throw new Error(data.error || 'R2 yükleme başarısız');
         }
       }
     } catch (err: any) {
