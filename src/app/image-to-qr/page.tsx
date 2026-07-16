@@ -136,34 +136,21 @@ export default function FileToQRPage() {
           throw new Error(data.error?.message || 'Cloudinary yükleme başarısız');
         }
       } else {
-        // Büyük dosya (>9MB): Cloudflare R2 — tarayıcı direkt yükler, Vercel'den geçmez
-        // 1) Sunucudan upload URL + token al
-        const signRes = await fetch('/api/r2-upload', {
+        // Büyük dosya (>9MB): Cloudflare R2
+        const r2Form = new FormData();
+        r2Form.append('file', file);
+
+        const uploadRes = await fetch('/api/r2-upload', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: file.name, mimeType: file.type }),
+          body: r2Form,
         });
-        const signData = await signRes.json();
-        if (!signData.uploadUrl) {
-          throw new Error(signData.error || 'Upload URL alınamadı');
+        const data = await uploadRes.json();
+
+        if (data.shareLink) {
+          setUploadedUrl(data.shareLink);
+        } else {
+          throw new Error(data.error || 'R2 yükleme başarısız');
         }
-
-        // 2) Tarayıcıdan direkt R2'ye PUT
-        const putRes = await fetch(signData.uploadUrl, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${signData.token}`,
-            'Content-Type': file.type || 'application/octet-stream',
-          },
-          body: file,
-        });
-
-        if (!putRes.ok) {
-          const errText = await putRes.text();
-          throw new Error(`R2 yükleme başarısız (${putRes.status}): ${errText}`);
-        }
-
-        setUploadedUrl(signData.shareLink);
       }
     } catch (err: any) {
       setUploadError("Yükleme başarısız: " + err.message);
