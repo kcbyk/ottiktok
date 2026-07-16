@@ -96,30 +96,61 @@ export default function QRReaderPage() {
       img.onload = () => {
         try {
           const canvas = document.createElement("canvas");
-          canvas.width = img.width;
-          canvas.height = img.height;
+          // Büyük görselleri scale down et — QR okuma için yeterli
+          const maxDim = 1600;
+          let w = img.width, h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+            else { w = Math.round(w * maxDim / h); h = maxDim; }
+          }
+          canvas.width = w;
+          canvas.height = h;
           const ctx = canvas.getContext("2d");
           if (!ctx) { setError("Canvas hatası."); setLoading(false); return; }
-          ctx.drawImage(img, 0, 0);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, w, h);
 
+          // Önce jsqr dene (hızlı)
           import("jsqr").then(({ default: jsQR }) => {
-            try {
-              const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: "attemptBoth",
-              });
-              if (code) {
-                setResult(code.data);
-              } else {
-                setError("QR kod bulunamadı. Görsel net ve tam olduğundan emin olun.");
-              }
-            } catch (err: any) {
-              setError("Okuma hatası: " + err.message);
-            } finally {
+            const imageData = ctx.getImageData(0, 0, w, h);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+              inversionAttempts: "attemptBoth",
+            });
+
+            if (code?.data) {
+              setResult(code.data);
               setLoading(false);
+              return;
             }
+
+            // jsqr bulamazsa zxing ile dene (daha güçlü)
+            import("@zxing/browser").then(({ BrowserMultiFormatReader }) => {
+              const zxing = new BrowserMultiFormatReader();
+              const imgEl = document.createElement("img");
+              imgEl.src = canvas.toDataURL("image/png");
+              imgEl.onload = async () => {
+                try {
+                  const result = await zxing.decodeFromImageElement(imgEl);
+                  if (result?.getText()) {
+                    setResult(result.getText());
+                  } else {
+                    setError("QR kod bulunamadı. Görselin net ve tam olduğundan emin olun.");
+                  }
+                } catch {
+                  setError("QR kod bulunamadı. Görselin net ve tam olduğundan emin olun.");
+                } finally {
+                  setLoading(false);
+                }
+              };
+              imgEl.onerror = () => {
+                setError("QR kod okunamadı.");
+                setLoading(false);
+              };
+            }).catch(() => {
+              setError("QR kod bulunamadı.");
+              setLoading(false);
+            });
           }).catch(err => {
-            setError("jsQR yüklenemedi: " + err.message);
+            setError("Kütüphane yüklenemedi: " + err.message);
             setLoading(false);
           });
         } catch (err: any) {
