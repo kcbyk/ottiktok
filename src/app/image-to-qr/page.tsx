@@ -136,21 +136,34 @@ export default function FileToQRPage() {
           throw new Error(data.error?.message || 'Cloudinary yükleme başarısız');
         }
       } else {
-        // Büyük dosya (>9MB): Supabase Storage
-        const r2Form = new FormData();
-        r2Form.append('file', file);
-
-        const uploadRes = await fetch('/api/r2-upload', {
+        // Büyük dosya (>9MB): Supabase Storage — tarayıcı direkt yükler, Vercel görmez
+        // 1) Sunucudan signed upload URL al (küçük JSON isteği)
+        const signRes = await fetch('/api/r2-upload', {
           method: 'POST',
-          body: r2Form,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, mimeType: file.type }),
         });
-        const data = await uploadRes.json();
-
-        if (data.shareLink) {
-          setUploadedUrl(data.shareLink);
-        } else {
-          throw new Error(data.error || 'Yükleme başarısız');
+        const signData = await signRes.json();
+        if (!signData.signedUrl) {
+          throw new Error(signData.error || 'Upload URL alınamadı');
         }
+
+        // 2) Tarayıcıdan direkt Supabase'e PUT
+        const putRes = await fetch(signData.signedUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': file.type || 'application/octet-stream',
+            'x-upsert': 'false',
+          },
+          body: file,
+        });
+
+        if (!putRes.ok) {
+          const errText = await putRes.text();
+          throw new Error(`Yükleme başarısız (${putRes.status}): ${errText}`);
+        }
+
+        setUploadedUrl(signData.shareLink);
       }
     } catch (err: any) {
       setUploadError("Yükleme başarısız: " + err.message);
