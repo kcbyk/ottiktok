@@ -50,8 +50,8 @@ export default function QRCodePage() {
   const [text, setText]       = useState("https://");
   const [wifi, setWifi]       = useState<WiFiConfig>({ ssid: "", password: "", security: "WPA", hidden: false });
   const [email, setEmail]     = useState<EmailConfig>({ to: "", subject: "", body: "" });
-  const [fgColor, setFgColor] = useState("#ffffff");
-  const [bgColor, setBgColor] = useState("#000000");
+  const [fgColor, setFgColor] = useState("#000000");
+  const [bgColor, setBgColor] = useState("#ffffff");
   const [size, setSize]       = useState(300);
   const [errorLevel, setErrorLevel] = useState<"L" | "M" | "Q" | "H">("M");
   const [qrDataUrl, setQrDataUrl]   = useState<string>("");

@@ -112,9 +112,9 @@ export default function QRReaderPage() {
           // Önce jsqr dene (hızlı)
           import("jsqr").then(({ default: jsQR }) => {
             const imageData = ctx.getImageData(0, 0, w, h);
-            const code = jsQR(imageData.data, imageData.width, imageData.height, {
-              inversionAttempts: "attemptBoth",
-            });
+            // Her iki renk kombinasyonunu dene
+            const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" })
+              || jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "onlyInvert" });
 
             if (code?.data) {
               setResult(code.data);
