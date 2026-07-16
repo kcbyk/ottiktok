@@ -63,60 +63,84 @@ export default function FileToQRPage() {
     setPreview(null); setFileIcon(null);
 
     const icon = getFileIcon(file.type, file.name);
-    if (icon) setFileIcon(icon); // dosya
+    if (icon) setFileIcon(icon);
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const dataUrl = e.target?.result as string;
+    const isImage = file.type.startsWith("image/");
 
-      const isImage = file.type.startsWith("image/");
-      let uploadData = dataUrl;
+    // Görsel için önizleme oluştur
+    if (isImage) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const maxDim = 1200;
+          let w = img.width, h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+            else { w = Math.round(w * maxDim / h); h = maxDim; }
+          }
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext("2d")!;
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          ctx.drawImage(img, 0, 0, w, h);
+          setPreview(canvas.toDataURL("image/jpeg", 0.92));
+        };
+        img.src = dataUrl;
+      };
+      reader.readAsDataURL(file);
+    }
 
-      if (isImage) {
-        // Görsel kalitesini koru, boyutu optimize et
-        await new Promise<void>(resolve => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement("canvas");
-            const maxDim = 1200;
-            let w = img.width, h = img.height;
-            if (w > maxDim || h > maxDim) {
-              if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
-              else { w = Math.round(w * maxDim / h); h = maxDim; }
-            }
-            canvas.width = w; canvas.height = h;
-            const ctx = canvas.getContext("2d")!;
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = "high";
-            ctx.drawImage(img, 0, 0, w, h);
-            uploadData = canvas.toDataURL("image/jpeg", 0.92);
-            setPreview(uploadData);
-            resolve();
-          };
-          img.src = dataUrl;
-        });
+    // Cloudinary'e direkt yükle (client-side) — Vercel body limitini aşmaz
+    setUploading(true);
+    try {
+      // 1. Server'dan imza al
+      const signRes = await fetch('/api/cloudinary-sign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mimeType: file.type, filename: file.name }),
+      });
+      const { signature, timestamp, folder, cloud, apiKey } = await signRes.json();
+
+      // 2. Dosyayı direkt Cloudinary'ye gönder (multipart/form-data)
+      const isAudio = file.type.startsWith('audio/');
+      const isVideo = file.type.startsWith('video/');
+      let resourceType = 'image';
+      if (isAudio) resourceType = 'raw';
+      else if (isVideo) resourceType = 'video';
+      else if (!isImage) resourceType = 'raw';
+
+      const form = new FormData();
+      form.append('file', file);
+      form.append('api_key', apiKey);
+      form.append('timestamp', timestamp);
+      form.append('signature', signature);
+      form.append('folder', folder);
+
+      const uploadRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloud}/${resourceType}/upload`,
+        { method: 'POST', body: form }
+      );
+      const data = await uploadRes.json();
+
+      if (data.secure_url) {
+        const id = data.public_id.split('/').pop() || 'f';
+        const fn = encodeURIComponent(file.name);
+        const imgUrl = encodeURIComponent(data.secure_url);
+        const type = encodeURIComponent(file.type);
+        const viewPath = isImage ? 'photo' : 'file';
+        const viewUrl = `${window.location.origin}/${viewPath}/${id}?url=${imgUrl}&fn=${fn}&type=${type}`;
+        setUploadedUrl(viewUrl);
+      } else {
+        throw new Error(data.error?.message || 'Yükleme başarısız');
       }
-
-      setUploading(true);
-      try {
-        const res = await fetch('/api/upload-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ base64: uploadData, filename: file.name, mimeType: file.type }),
-        });
-        const data = await res.json();
-        if (data.url) {
-          setUploadedUrl(data.url);
-        } else {
-          throw new Error(data.error || 'Yükleme başarısız');
-        }
-      } catch (err: any) {
-        setUploadError("Yükleme başarısız: " + err.message);
-      } finally {
-        setUploading(false);
-      }
-    };
-    reader.readAsDataURL(file);
+    } catch (err: any) {
+      setUploadError("Yükleme başarısız: " + err.message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
