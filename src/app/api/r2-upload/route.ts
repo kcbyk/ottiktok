@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-export const runtime = 'edge';
-
-const CF_ACCOUNT_ID  = process.env.CF_ACCOUNT_ID  || '';
-const CF_API_TOKEN   = process.env.CF_API_TOKEN   || '';
-const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'ottiktok-files';
-const R2_PUBLIC_URL  = process.env.R2_PUBLIC_URL  || 'https://pub-f0666a218521401bbfb12857551a4628.r2.dev';
+const SUPABASE_URL      = process.env.SUPABASE_URL || '';
+const SUPABASE_KEY      = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const SUPABASE_BUCKET   = process.env.SUPABASE_BUCKET || 'ottiktok-files';
 
 const MAX_SIZE = 500 * 1024 * 1024; // 500 MB
 
 export async function POST(req: NextRequest) {
   try {
-    if (!CF_ACCOUNT_ID || !CF_API_TOKEN) {
-      return NextResponse.json(
-        { error: 'R2 yapılandırılmamış' },
-        { status: 503 }
-      );
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+      return NextResponse.json({ error: 'Supabase yapılandırılmamış' }, { status: 503 });
     }
 
     const formData = await req.formData();
@@ -26,57 +21,51 @@ export async function POST(req: NextRequest) {
     }
 
     if (file.size > MAX_SIZE) {
-      return NextResponse.json(
-        { error: 'Dosya boyutu 500 MB sınırını aşıyor' },
-        { status: 413 }
-      );
+      return NextResponse.json({ error: 'Dosya boyutu 500 MB sınırını aşıyor' }, { status: 413 });
     }
 
     // File_Key üret
     const originalName = file.name || 'file';
-    const sanitized = originalName
-      .replace(/\s+/g, '_')
-      .replace(/[^a-zA-Z0-9._-]/g, '');
+    const sanitized = originalName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '');
     const fileKey = `${Date.now()}_${sanitized || 'file'}`;
 
-    // Cloudflare REST API ile R2'ye yükle
+    // Supabase Storage'a yükle
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
     const arrayBuffer = await file.arrayBuffer();
-    const uploadUrl = `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/r2/buckets/${R2_BUCKET_NAME}/objects/${fileKey}`;
 
-    const uploadRes = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${CF_API_TOKEN}`,
-        'Content-Type': file.type || 'application/octet-stream',
-      },
-      body: arrayBuffer,
-    });
+    const { error: uploadError } = await supabase.storage
+      .from(SUPABASE_BUCKET)
+      .upload(fileKey, arrayBuffer, {
+        contentType: file.type || 'application/octet-stream',
+        upsert: false,
+      });
 
-    if (!uploadRes.ok) {
-      const errText = await uploadRes.text();
-      return NextResponse.json(
-        { error: `Yükleme başarısız (${uploadRes.status}): ${errText}` },
-        { status: 502 }
-      );
+    if (uploadError) {
+      console.error('Supabase upload error:', uploadError);
+      return NextResponse.json({ error: 'Yükleme başarısız: ' + uploadError.message }, { status: 502 });
     }
+
+    // Public URL al
+    const { data: urlData } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(fileKey);
+    const publicUrl = urlData.publicUrl;
 
     // Share_Link oluştur
     const host = req.headers.get('host') || 'localhost:3000';
     const protocol = host.includes('localhost') ? 'http' : 'https';
-    const r2Url = `${R2_PUBLIC_URL}/${fileKey}`;
     const shareLink = `${protocol}://${host}/file/${fileKey}`
-      + `?url=${encodeURIComponent(r2Url)}`
+      + `?url=${encodeURIComponent(publicUrl)}`
       + `&fn=${encodeURIComponent(originalName)}`
       + `&type=${encodeURIComponent(file.type || 'application/octet-stream')}`;
 
     return NextResponse.json({
-      url: r2Url,
+      url: publicUrl,
       key: fileKey,
       filename: originalName,
       mimeType: file.type || 'application/octet-stream',
       shareLink,
     });
   } catch (err: any) {
+    console.error('upload error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

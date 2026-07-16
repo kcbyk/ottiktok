@@ -136,7 +136,7 @@ export default function FileToQRPage() {
           throw new Error(data.error?.message || 'Cloudinary yükleme başarısız');
         }
       } else {
-        // Büyük dosya (>9MB): Cloudflare R2
+        // Büyük dosya (>9MB): Supabase Storage
         const r2Form = new FormData();
         r2Form.append('file', file);
 
@@ -149,7 +149,7 @@ export default function FileToQRPage() {
         if (data.shareLink) {
           setUploadedUrl(data.shareLink);
         } else {
-          throw new Error(data.error || 'R2 yükleme başarısız');
+          throw new Error(data.error || 'Yükleme başarısız');
         }
       }
     } catch (err: any) {
