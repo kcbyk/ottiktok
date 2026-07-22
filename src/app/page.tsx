@@ -164,10 +164,14 @@ export default function Home() {
 
       {/* ── HERO ── */}
       <div style={{ textAlign: "center", width: "100%", paddingTop: "1rem" }}>
+        {/* Logo */}
+        <div style={{ marginBottom: "1.5rem" }}>
+          <img src="/icon-192x192.png" alt="Savio Logo" style={{ width: "100px", height: "100px", borderRadius: "24px", boxShadow: "0 8px 32px rgba(139, 92, 246, 0.25)" }} />
+        </div>
         {/* Badge */}
-        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.35rem 0.9rem", borderRadius: "999px", background: "rgba(254,44,85,0.12)", border: "1px solid rgba(254,44,85,0.25)", marginBottom: "1.5rem" }}>
-          <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#fe2c55", boxShadow: "0 0 6px #fe2c55" }} />
-          <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#fe2c55", letterSpacing: "0.04em" }}>Tamamen Ücretsiz · Reklamsız</span>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.35rem 0.9rem", borderRadius: "999px", background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)", marginBottom: "1.5rem" }}>
+          <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#8b5cf6", boxShadow: "0 0 6px #8b5cf6" }} />
+          <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#8b5cf6", letterSpacing: "0.04em" }}>Savio - Tamamen Ücretsiz · Reklamsız</span>
         </div>
 
         <h1 style={{
@@ -180,8 +184,8 @@ export default function Home() {
           WebkitTextFillColor: "unset",
           color: "white",
         }}>
-          Sosyal Medya{" "}
-          <span style={{ background: "linear-gradient(135deg, #fe2c55, #ff6b6b)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          Savio{" "}
+          <span style={{ background: "linear-gradient(135deg, #8b5cf6, #ec4899)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
             İndirici
           </span>
           {" "}&{" "}
