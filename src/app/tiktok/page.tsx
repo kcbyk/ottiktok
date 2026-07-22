@@ -60,8 +60,9 @@ export default function TikTokPage() {
           isCompleted = true;
           // İşlem bitti! UI formatına uygun set ediyoruz.
           setResult({
-            author: "TikTok Videosu",
-            title: "İndirme Tamamlandı",
+            author: statusData.author || "TikTok Videosu",
+            title: statusData.title || "İndirme Tamamlandı",
+            cover: statusData.cover || "",
             play: statusData.url || statusData.result_url || "#", 
             rawData: statusData
           });

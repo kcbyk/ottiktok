@@ -94,13 +94,12 @@ export default function YouTubePage() {
         if (statusData.status === "completed") {
           isCompleted = true;
           // İşlem bitti! Render motorundan dönen dosya URL'sini veya objesini burada UI'a aktarıyoruz.
-          // Lütfen Render API'nin completed olduğunda döndürdüğü 'url' veya formatı burada setResult'e uygun şekilde ver.
           setResult({
-            title: "İndirme Tamamlandı",
+            title: statusData.title || "İndirme Tamamlandı",
+            cover: statusData.cover || "",
             formats: [
               { quality: "İndir", url: statusData.url || statusData.result_url || "#" }
             ],
-            // Eğer JSON'da farklı geliyorsa burayı düzenleyebiliriz.
             rawData: statusData 
           });
         } else {
