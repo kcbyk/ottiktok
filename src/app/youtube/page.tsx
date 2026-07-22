@@ -60,14 +60,54 @@ export default function YouTubePage() {
     setError("");
     setResult(null);
     try {
-      const res = await fetch("/api/youtube", {
+      const renderApiUrl = process.env.NEXT_PUBLIC_RENDER_API_URL || "https://solebz.onrender.com";
+      const renderApiKey = process.env.NEXT_PUBLIC_RENDER_API_KEY || "solebz_benimsifrem_123";
+
+      // 1. İndirme isteğini başlat (Job ID al)
+      const res = await fetch(`${renderApiUrl}/api/v1/download`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        headers: { 
+          "Content-Type": "application/json",
+          "x-api-key": renderApiKey
+        },
+        body: JSON.stringify({ url, mode: "video" }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Bir hata oluştu");
-      setResult(data);
+      const initData = await res.json();
+      
+      if (!res.ok) throw new Error(initData.error || "İndirme başlatılamadı");
+      if (!initData.job_id) throw new Error("Job ID alınamadı.");
+
+      const jobId = initData.job_id;
+      
+      // 2. İşlemi Poll et (Durumu kontrol et)
+      let isCompleted = false;
+      while (!isCompleted) {
+        const statusRes = await fetch(`${renderApiUrl}/api/v1/status/${jobId}`, {
+          headers: { "x-api-key": renderApiKey }
+        });
+        const statusData = await statusRes.json();
+        
+        if (statusData.status === "error" || statusData.status === "failed") {
+          throw new Error(statusData.error || "İndirme sırasında hata oluştu.");
+        }
+        
+        if (statusData.status === "completed") {
+          isCompleted = true;
+          // İşlem bitti! Render motorundan dönen dosya URL'sini veya objesini burada UI'a aktarıyoruz.
+          // Lütfen Render API'nin completed olduğunda döndürdüğü 'url' veya formatı burada setResult'e uygun şekilde ver.
+          setResult({
+            title: "İndirme Tamamlandı",
+            formats: [
+              { quality: "İndir", url: statusData.url || statusData.result_url || "#" }
+            ],
+            // Eğer JSON'da farklı geliyorsa burayı düzenleyebiliriz.
+            rawData: statusData 
+          });
+        } else {
+          // 3 saniye bekle ve tekrar kontrol et
+          await new Promise(r => setTimeout(r, 3000));
+        }
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {

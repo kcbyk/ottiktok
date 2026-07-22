@@ -71,6 +71,7 @@ Modern, reklamsız ve çok işlevli bir web uygulaması. Next.js (App Router) il
 
 ### Sistem Özellikleri
 
+- **Custom API Entegrasyonu** — Uzun süren indirme işlemleri Vercel timeout sınırına takılmaması için doğrudan istemci üzerinden (Client-Side Polling) özel Render backend'ine bağlanır.
 - **API Key Rotation** — Instagram, Pinterest, Twitter, YouTube ve Gemini için çoklu key rotasyonu
 - **Force-Download Proxy** — medyalar yeni sekmede açılmaz, direkt indirilir
 - **Deep Linking** — platform logolarına tıklayınca mobil uygulamayı açar

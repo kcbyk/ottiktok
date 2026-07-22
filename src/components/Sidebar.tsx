@@ -89,6 +89,15 @@ export default function Sidebar() {
       border: "1px solid rgba(255,255,255,0.15)",
       shadow: "rgba(29,161,242,0.25)",
       icon: <XIcon size={18} />
+    },
+    {
+      name: "YouTube İndirici",
+      desc: "Videolar ve Shorts'lar",
+      href: "/youtube",
+      color: "#FF0000",
+      border: "none",
+      shadow: "rgba(255,0,0,0.25)",
+      icon: <YTIcon size={20} />
     }
   ];
 
