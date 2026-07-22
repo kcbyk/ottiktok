@@ -164,10 +164,6 @@ export default function Home() {
 
       {/* ── HERO ── */}
       <div style={{ textAlign: "center", width: "100%", paddingTop: "1rem" }}>
-        {/* Logo */}
-        <div style={{ marginBottom: "1.5rem" }}>
-          <img src="/icon-192x192.png" alt="Savio Logo" style={{ width: "100px", height: "100px", borderRadius: "24px", boxShadow: "0 8px 32px rgba(139, 92, 246, 0.25)" }} />
-        </div>
         {/* Badge */}
         <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.35rem 0.9rem", borderRadius: "999px", background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)", marginBottom: "1.5rem" }}>
           <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#8b5cf6", boxShadow: "0 0 6px #8b5cf6" }} />
