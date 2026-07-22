@@ -3,20 +3,20 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
+  themeColor: "#080808",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
 };
 
 export const metadata: Metadata = {
-  title: "SSSTik Clone - Ad-Free TikTok, Instagram & Pinterest Downloader",
+  title: "Savio - Ad-Free Social Media Downloader",
   description: "Download TikTok, Instagram, and Pinterest media without watermark for free, without any ads. Modern and fast.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "OttiTok",
+    title: "Savio",
   },
 };
 

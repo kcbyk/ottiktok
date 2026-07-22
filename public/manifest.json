@@ -1,11 +1,11 @@
 {
-  "name": "OttiTok",
-  "short_name": "OttiTok",
-  "description": "Sosyal Medya İndirici & Araç Seti",
+  "name": "Savio - Video & Araç Seti",
+  "short_name": "Savio",
+  "description": "Sosyal medya indiriciniz ve modern araç setiniz.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#0a0a0a",
+  "background_color": "#080808",
+  "theme_color": "#080808",
   "orientation": "portrait",
   "icons": [
     {
