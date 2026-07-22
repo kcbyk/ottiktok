@@ -78,15 +78,6 @@ const platforms = [
     shadow: "rgba(29,155,240,0.25)",
     icon: <XIcon />,
   },
-  {
-    name: "YouTube",
-    desc: "Videolar ve Shorts'ları yüksek kalitede indir",
-    href: "/youtube",
-    bg: "linear-gradient(135deg, #FF0000, #cc0000)",
-    accent: "#FF0000",
-    shadow: "rgba(255,0,0,0.25)",
-    icon: <YIcon />,
-  },
 ];
 
 const tools = [

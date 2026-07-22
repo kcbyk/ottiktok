@@ -1,0 +1,16 @@
+HTTP/1.1 200 OK
+Date: Wed, 22 Jul 2026 15:53:33 GMT
+Content-Type: video/mp4
+Content-Length: 629172
+Connection: keep-alive
+Accept-Ranges: bytes
+content-disposition: attachment; filename="Me at the zoo.mp4"
+etag: "f32c596e50aab1cdce67c199433cf1e8"
+last-modified: Wed, 22 Jul 2026 15:53:05 GMT
+rndr-id: e84e6030-a1a7-4fd7
+Server: cloudflare
+x-render-origin-server: uvicorn
+cf-cache-status: DYNAMIC
+CF-RAY: a1f39e6cce8b3d74-IST
+alt-svc: h3=":443"; ma=86400
+
