@@ -9,6 +9,38 @@ export default function MusicPlayer() {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+
+  // Fetch actual audio URL when track changes
+  useEffect(() => {
+    if (!currentTrack) {
+      setAudioUrl(null);
+      return;
+    }
+    
+    let isMounted = true;
+    const fetchAudio = async () => {
+      setIsLoadingAudio(true);
+      try {
+        const res = await fetch(`/api/youtube-media/v2/video/details?videoId=${currentTrack.videoId}`);
+        const data = await res.json();
+        const audios = data.audios?.items || [];
+        const bestAudio = audios.find((a: any) => a.extension === "mp3" || a.extension === "m4a") || audios[0];
+        if (isMounted && bestAudio?.url) {
+          setAudioUrl(bestAudio.url);
+        }
+      } catch (e) {
+        console.error("Failed to fetch audio url", e);
+      } finally {
+        if (isMounted) setIsLoadingAudio(false);
+      }
+    };
+    
+    fetchAudio();
+    
+    return () => { isMounted = false; };
+  }, [currentTrack]);
 
   // Sync state with audio element
   useEffect(() => {
@@ -69,7 +101,7 @@ export default function MusicPlayer() {
     }}>
       <audio
         ref={audioRef}
-        src={`/api/youtube-media/${currentTrack.videoId}`}
+        src={audioUrl || ""}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
         onPlay={() => setIsPlaying(true)}
@@ -95,7 +127,7 @@ export default function MusicPlayer() {
             {currentTrack.title}
           </div>
           <div style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.6)", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-            {currentTrack.artist}
+            {isLoadingAudio ? "Yükleniyor..." : currentTrack.artist}
           </div>
         </div>
       </div>
