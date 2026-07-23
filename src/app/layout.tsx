@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
+import { Providers } from "@/components/Providers";
 
 export const viewport: Viewport = {
   themeColor: "#080808",
@@ -28,11 +29,13 @@ export default function RootLayout({
   return (
     <html lang="tr">
       <body>
-        {/* Global Sidebar Menü */}
-        <Sidebar />
-        <main className="container">
-          {children}
-        </main>
+        <Providers>
+          {/* Global Sidebar Menü */}
+          <Sidebar />
+          <main className="container">
+            {children}
+          </main>
+        </Providers>
       </body>
     </html>
   );
