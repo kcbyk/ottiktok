@@ -34,21 +34,14 @@ body {
 .container {
   width: 100%;
   max-width: 800px;
-  margin-left: 240px;
-  padding: 2rem;
-  padding-bottom: 100px;
+  margin: 0 auto;
+  padding: 4.5rem 1rem 100px 1rem;
   min-height: 100vh;
-  /* Sağ üstteki hamburger butonu (56px) ile çakışmayı önle */
-  padding-right: 1rem;
 }
 
-@media (max-width: 639px) {
+@media (min-width: 640px) {
   .container {
-    padding: 1rem;
-    padding-left: 1rem;
-    padding-bottom: 100px;
-    /* Hamburger butonunun altına düş */
-    padding-top: 4.5rem;
+    padding: 5rem 2rem 100px 2rem;
   }
 }
 
