@@ -47,7 +47,6 @@ function ThinkingBox({ text, isStreaming }: { text: string; isStreaming: boolean
 }
 
 export default function PlaylistPage() {
-  const { data: session } = useSession();
   const [prompt, setPrompt]           = useState("");
   const [loading, setLoading]         = useState(false);
   const [playlist, setPlaylist]       = useState<Playlist | null>(null);
