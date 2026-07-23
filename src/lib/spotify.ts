@@ -8,7 +8,10 @@ export async function createSpotifyPlaylist(
   const userRes = await fetch("https://api.spotify.com/v1/me", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!userRes.ok) throw new Error("Spotify kullanici bilgileri alinamadi");
+  if (!userRes.ok) {
+    const errText = await userRes.text();
+    throw new Error("Spotify kullanici bilgileri alinamadi: " + errText);
+  }
   const userData = await userRes.json();
   const userId = userData.id;
 
@@ -25,7 +28,10 @@ export async function createSpotifyPlaylist(
       public: true,
     }),
   });
-  if (!createRes.ok) throw new Error("Spotify playlist olusturulamadi");
+  if (!createRes.ok) {
+    const errText = await createRes.text();
+    throw new Error("Spotify playlist olusturulamadi: " + errText);
+  }
   const playlistData = await createRes.json();
   const playlistId = playlistData.id;
   const playlistUrl = playlistData.external_urls?.spotify;
@@ -61,7 +67,10 @@ export async function createSpotifyPlaylist(
         uris: uris,
       }),
     });
-    if (!addRes.ok) throw new Error("Sarkilar playliste eklenemedi");
+    if (!addRes.ok) {
+      const errText = await addRes.text();
+      throw new Error("Sarkilar playliste eklenemedi: " + errText);
+    }
   }
 
   return { success: true, url: playlistUrl, found: uris.length, total: songs.length };
