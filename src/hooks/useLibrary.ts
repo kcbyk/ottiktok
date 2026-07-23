@@ -48,5 +48,29 @@ export function useLibrary() {
     localStorage.setItem("savio_library", JSON.stringify(updated));
   };
 
-  return { playlists, isLoaded, savePlaylist, deletePlaylist };
+  const addTrackToPlaylist = (playlistId: string, track: Track) => {
+    const updated = playlists.map(p => {
+      if (p.id === playlistId) {
+        // Prevent duplicates
+        if (p.tracks.find(t => t.videoId === track.videoId)) return p;
+        return { ...p, tracks: [...p.tracks, track] };
+      }
+      return p;
+    });
+    setPlaylists(updated);
+    localStorage.setItem("savio_library", JSON.stringify(updated));
+  };
+
+  const removeTrackFromPlaylist = (playlistId: string, videoId: string) => {
+    const updated = playlists.map(p => {
+      if (p.id === playlistId) {
+        return { ...p, tracks: p.tracks.filter(t => t.videoId !== videoId) };
+      }
+      return p;
+    });
+    setPlaylists(updated);
+    localStorage.setItem("savio_library", JSON.stringify(updated));
+  };
+
+  return { playlists, isLoaded, savePlaylist, deletePlaylist, addTrackToPlaylist, removeTrackFromPlaylist };
 }

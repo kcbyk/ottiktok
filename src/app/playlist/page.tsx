@@ -219,6 +219,13 @@ export default function PlaylistPage() {
           </div>
           <p className="subtitle" style={{ margin: 0, textAlign: "left" }}>Ne dinlemek istediğini söyle, Gemini sana özel liste hazırlasın.</p>
         </div>
+        
+        <Link href="/music" style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem 1rem", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", color: "white", textDecoration: "none", fontWeight: 600, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M9 9l12-2"/>
+          </svg>
+          Kütüphanem
+        </Link>
       </div>
 
       <div className="glass-panel" style={{ width: "100%", display: "flex", flexDirection: "column", gap: "1rem" }}>

@@ -37,47 +37,50 @@ export default function MusicPage() {
             <Link href="/playlist" className="btn btn-secondary" style={{ padding: "0.6rem 1.2rem", textDecoration: "none", display: "inline-block" }}>Şimdi Oluştur</Link>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1rem" }}>
-            {playlists.map(playlist => (
-              <div key={playlist.id} style={{ background: "rgba(255,255,255,0.05)", borderRadius: "16px", padding: "1.25rem", border: "1px solid rgba(255,255,255,0.08)", display: "flex", flexDirection: "column", gap: "1rem", transition: "transform 0.2s", cursor: "pointer" }}
-                onMouseEnter={e => e.currentTarget.style.transform = "translateY(-4px)"}
-                onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
-              >
-                <div>
-                  <h3 style={{ fontSize: "1.1rem", fontWeight: 600, color: "white", marginBottom: "0.25rem" }}>{playlist.name}</h3>
-                  <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.5)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{playlist.description}</p>
-                </div>
-                
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto" }}>
-                  <span style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.4)" }}>
-                    {playlist.tracks.length} Şarkı
-                  </span>
-                  
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
-                    <button 
-                      onClick={() => deletePlaylist(playlist.id)}
-                      style={{ width: "36px", height: "36px", borderRadius: "50%", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "background 0.2s" }}
-                      onMouseEnter={e => e.currentTarget.style.background = "rgba(239, 68, 68, 0.2)"}
-                      onMouseLeave={e => e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)"}
-                      title="Sil"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                    </button>
-                    <button 
-                      onClick={() => setQueueAndPlay(playlist.tracks)}
-                      style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#22c55e", border: "none", color: "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 4px 12px rgba(34, 197, 94, 0.3)", transition: "transform 0.1s" }}
-                      onMouseDown={e => e.currentTarget.style.transform = "scale(0.9)"}
-                      onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
-                      onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
-                      title="Oynat"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1rem" }}>
+      {playlists.map(playlist => (
+        <div 
+          key={playlist.id} 
+          onClick={() => window.location.href = `/music/${playlist.id}`}
+          style={{ background: "rgba(255,255,255,0.05)", borderRadius: "16px", padding: "1.25rem", border: "1px solid rgba(255,255,255,0.08)", display: "flex", flexDirection: "column", gap: "1rem", transition: "transform 0.2s", cursor: "pointer" }}
+          onMouseEnter={e => e.currentTarget.style.transform = "translateY(-4px)"}
+          onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
+        >
+          <div>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 600, color: "white", marginBottom: "0.25rem" }}>{playlist.name}</h3>
+            <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.5)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{playlist.description}</p>
           </div>
+          
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto" }}>
+            <span style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.4)" }}>
+              {playlist.tracks.length} Şarkı
+            </span>
+            
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button 
+                onClick={(e) => { e.stopPropagation(); deletePlaylist(playlist.id); }}
+                style={{ width: "36px", height: "36px", borderRadius: "50%", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "background 0.2s" }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(239, 68, 68, 0.2)"}
+                onMouseLeave={e => e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)"}
+                title="Sil"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setQueueAndPlay(playlist.tracks); }}
+                style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#22c55e", border: "none", color: "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 4px 12px rgba(34, 197, 94, 0.3)", transition: "transform 0.1s" }}
+                onMouseDown={e => e.currentTarget.style.transform = "scale(0.9)"}
+                onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+                onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                title="Oynat"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
         )}
       </div>
     </div>

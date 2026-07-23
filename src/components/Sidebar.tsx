@@ -488,7 +488,7 @@ export default function Sidebar() {
                 const isActive = pathname === "/music" || pathname === "/playlist";
                 return (
                   <Link
-                    href="/music"
+                    href="/playlist"
                     onClick={() => setMenuOpen(false)}
                     style={{
                       display: "flex", alignItems: "center", gap: "1rem",
