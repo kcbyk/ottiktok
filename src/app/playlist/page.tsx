@@ -72,7 +72,7 @@ export default function PlaylistPage() {
       videoId: s.videoId as string,
       title: s.title,
       artist: s.artist,
-      thumbnail: s.thumbnail,
+      thumbnail: s.thumbnail || undefined,
     }));
     savePlaylist(playlist.playlist_name, playlist.description, tracks);
     setQueueAndPlay(tracks);
