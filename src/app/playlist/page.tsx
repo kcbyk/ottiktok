@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { useSession, signIn, signOut } from "next-auth/react";
-import { createSpotifyPlaylist } from "@/lib/spotify";
+// Removed NextAuth imports for Spotify integration
 
 interface Song {
   artist: string;
@@ -62,7 +60,6 @@ export default function PlaylistPage() {
   const [downloading, setDownloading] = useState<Record<number, boolean>>({});
   const [downloaded, setDownloaded]   = useState<Record<number, boolean>>({});
   const [zipLoading, setZipLoading]   = useState(false);
-  const [spotifyLoading, setSpotifyLoading] = useState(false);
 
   const handleGenerate = async (customPrompt?: string) => {
     const q = customPrompt || prompt;
@@ -126,7 +123,6 @@ export default function PlaylistPage() {
     try {
       const mp3 = await getMP3Url(song.videoId);
       if (!mp3) throw new Error("MP3 linki alınamadı");
-      // Signed URL — download attribute ile indir, çalışmazsa yeni sekmede aç
       const filename = `${song.artist} - ${song.title}.mp3`.replace(/[^a-zA-Z0-9\s\-_.]/g, "").trim();
       const a = document.createElement("a");
       a.href = mp3;
@@ -145,7 +141,6 @@ export default function PlaylistPage() {
     if (!songs.length) return;
     setZipLoading(true);
     try {
-      // Her şarkı için MP3 URL'lerini topla
       const validSongs = songs.filter(s => s.videoId);
       const results: { song: Song; idx: number; url: string }[] = [];
 
@@ -162,9 +157,6 @@ export default function PlaylistPage() {
         return;
       }
 
-      // MP3 signed URL'leri proxy üzerinden fetch edilemeyebilir (CORS/auth kısıtlamaları).
-      // En güvenilir yöntem: her şarkıyı ayrı sekme/link ile indir.
-      // Kullanıcıya onay sor (çok sekme açılacağını belirt)
       const proceed = window.confirm(
         `${results.length} şarkı ayrı ayrı indirilecek (tarayıcı pop-up izni gerekebilir). Devam edilsin mi?\n\nNot: Tarayıcı pop-up engelliyorsa ayarlardan izin verin.`
       );
@@ -180,7 +172,6 @@ export default function PlaylistPage() {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        // Çok hızlı açılırsa tarayıcı engelleyebilir, küçük gecikme ekle
         await new Promise(r => setTimeout(r, 300));
       }
     } catch (e: any) { alert("İndirme hatası: " + e.message); }
@@ -210,26 +201,6 @@ export default function PlaylistPage() {
             <h1 style={{ fontSize: "2rem", fontWeight: 800, background: "linear-gradient(135deg, #8b5cf6, #ec4899)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: 0 }}>AI Playlist</h1>
           </div>
           <p className="subtitle" style={{ margin: 0, textAlign: "left" }}>Ne dinlemek istediğini söyle, Gemini sana özel liste hazırlasın.</p>
-        </div>
-
-        {/* Spotify Login Component */}
-        <div className="glass-panel" style={{ padding: "0.5rem 1rem", borderRadius: "99px", display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          {session ? (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                {session.user?.image && <img src={session.user.image} alt="Profile" style={{ width: "24px", height: "24px", borderRadius: "50%" }} />}
-                <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>{session.user?.name}</span>
-              </div>
-              <button onClick={() => signOut()} style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.1)", border: "none", color: "white", padding: "0.3rem 0.7rem", borderRadius: "8px", cursor: "pointer" }}>
-                Çıkış
-              </button>
-            </>
-          ) : (
-            <button onClick={() => signIn("spotify")} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", background: "#1DB954", border: "none", color: "white", padding: "0.4rem 0.8rem", borderRadius: "99px", cursor: "pointer", fontWeight: 600 }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15.001 10.62 18.661 12.84c.36.181.54.78.24 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
-              Spotify ile Giriş
-            </button>
-          )}
         </div>
       </div>
 
@@ -286,37 +257,6 @@ export default function PlaylistPage() {
                   <button onClick={handleDownloadAll} disabled={zipLoading} className="btn" style={{ background: "linear-gradient(135deg, #8b5cf6, #ec4899)", fontSize: "0.85rem", padding: "0.6rem 1.1rem" }}>
                     {zipLoading ? <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={spin}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> : null}
                     {zipLoading ? " İndiriliyor..." : "Tümünü İndir"}
-                  </button>
-                  <button onClick={async () => {
-                    if (!session || !(session as any).accessToken) {
-                      signIn("spotify");
-                      return;
-                    }
-                    if (!playlist || !songs.length) return;
-                    setSpotifyLoading(true);
-                    try {
-                      const res = await createSpotifyPlaylist(
-                        (session as any).accessToken,
-                        playlist.playlist_name,
-                        playlist.description,
-                        foundSongs
-                      );
-                      if (res.success && res.url) {
-                        alert(`Başarılı! ${res.found}/${res.total} şarkı bulundu ve Spotify'a eklendi.`);
-                        window.open(res.url, "_blank");
-                      }
-                    } catch (e: any) {
-                      alert("Spotify hatası: " + e.message);
-                    } finally {
-                      setSpotifyLoading(false);
-                    }
-                  }} disabled={spotifyLoading} className="btn" style={{ background: "#1DB954", fontSize: "0.85rem", padding: "0.6rem 1.1rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                    {spotifyLoading ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={spin}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15.001 10.62 18.661 12.84c.36.181.54.78.24 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
-                    )}
-                    {spotifyLoading ? " Oluşturuluyor..." : "Spotify'da Oluştur"}
                   </button>
                   <button onClick={() => handleGenerate()} className="btn btn-secondary" style={{ fontSize: "0.85rem", padding: "0.6rem 1rem" }}>Yenile</button>
                 </div>
