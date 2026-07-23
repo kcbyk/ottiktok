@@ -9,6 +9,7 @@ export const authOptions: NextAuthOptions = {
       authorization: {
         params: {
           scope: "user-read-email user-read-private playlist-modify-public playlist-modify-private",
+          show_dialog: true,
         },
       },
     }),
