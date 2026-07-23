@@ -19,6 +19,7 @@ interface PlayerContextType {
   prevTrack: () => void;
   setQueueAndPlay: (tracks: Track[], startIndex?: number) => void;
   setIsPlaying: (playing: boolean) => void;
+  closePlayer: () => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -56,6 +57,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsPlaying(true);
   };
 
+  const closePlayer = () => {
+    setCurrentTrack(null);
+    setQueue([]);
+    setIsPlaying(false);
+  };
+
   return (
     <PlayerContext.Provider
       value={{
@@ -68,6 +75,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         prevTrack,
         setQueueAndPlay,
         setIsPlaying,
+        closePlayer,
       }}
     >
       {children}
