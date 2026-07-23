@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePlayer } from "@/context/PlayerContext";
+import { useLibrary } from "@/hooks/useLibrary";
 // Removed NextAuth imports for Spotify integration
 
 interface Song {
@@ -60,6 +62,21 @@ export default function PlaylistPage() {
   const [downloading, setDownloading] = useState<Record<number, boolean>>({});
   const [downloaded, setDownloaded]   = useState<Record<number, boolean>>({});
   const [zipLoading, setZipLoading]   = useState(false);
+
+  const { setQueueAndPlay } = usePlayer();
+  const { savePlaylist } = useLibrary();
+
+  const handleListen = () => {
+    if (!playlist || foundSongs.length === 0) return;
+    const tracks = foundSongs.filter(s => s.videoId).map(s => ({
+      videoId: s.videoId as string,
+      title: s.title,
+      artist: s.artist,
+      thumbnail: s.thumbnail,
+    }));
+    savePlaylist(playlist.playlist_name, playlist.description, tracks);
+    setQueueAndPlay(tracks);
+  };
 
   const handleGenerate = async (customPrompt?: string) => {
     const q = customPrompt || prompt;
@@ -257,6 +274,10 @@ export default function PlaylistPage() {
                   <button onClick={handleDownloadAll} disabled={zipLoading} className="btn" style={{ background: "linear-gradient(135deg, #8b5cf6, #ec4899)", fontSize: "0.85rem", padding: "0.6rem 1.1rem" }}>
                     {zipLoading ? <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={spin}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> : null}
                     {zipLoading ? " İndiriliyor..." : "Tümünü İndir"}
+                  </button>
+                  <button onClick={handleListen} className="btn" style={{ background: "#22c55e", fontSize: "0.85rem", padding: "0.6rem 1.1rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    Kütüphaneye Ekle ve Dinle
                   </button>
                   <button onClick={() => handleGenerate()} className="btn btn-secondary" style={{ fontSize: "0.85rem", padding: "0.6rem 1rem" }}>Yenile</button>
                 </div>

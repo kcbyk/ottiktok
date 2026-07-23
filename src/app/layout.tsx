@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import { Providers } from "@/components/Providers";
+import { PlayerProvider } from "@/context/PlayerContext";
+import MusicPlayer from "@/components/MusicPlayer";
 
 export const viewport: Viewport = {
   themeColor: "#080808",
@@ -30,11 +32,14 @@ export default function RootLayout({
     <html lang="tr">
       <body>
         <Providers>
-          {/* Global Sidebar Menü */}
-          <Sidebar />
-          <main className="container">
-            {children}
-          </main>
+          <PlayerProvider>
+            {/* Global Sidebar Menü */}
+            <Sidebar />
+            <main className="container">
+              {children}
+            </main>
+            <MusicPlayer />
+          </PlayerProvider>
         </Providers>
       </body>
     </html>
