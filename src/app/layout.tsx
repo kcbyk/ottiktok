@@ -13,8 +13,23 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Savio - Ad-Free Social Media Downloader",
-  description: "Download TikTok, Instagram, and Pinterest media without watermark for free, without any ads. Modern and fast.",
+  title: "Savio | Müzik Platformu, Yapay Zeka Çalma Listesi ve Medya İndirici",
+  description: "Savio ile yapay zeka destekli müzik listeleri oluşturun, şarkıları dinleyin ve indirin. Reklamsız TikTok, Instagram ve Pinterest medya indiricisi.",
+  keywords: ["Savio", "Savio müzik", "Savio playlist", "Savio yapay zeka müzik", "yapay zeka şarkı", "ücretsiz müzik dinle", "Savio indirici", "Savio video indir", "tiktok filigransız indir"],
+  authors: [{ name: "Savio" }],
+  openGraph: {
+    title: "Savio | Müzik Platformu ve Medya İndirici",
+    description: "Savio ile yapay zeka destekli müzik listeleri oluşturun, şarkıları dinleyin ve indirin.",
+    url: "https://ottiktok.vercel.app",
+    siteName: "Savio",
+    locale: "tr_TR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Savio | Müzik Platformu ve Medya İndirici",
+    description: "Savio ile yapay zeka destekli müzik listeleri oluşturun, şarkıları dinleyin ve indirin.",
+  },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
