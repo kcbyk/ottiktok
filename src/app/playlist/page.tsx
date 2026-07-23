@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 // Removed NextAuth imports for Spotify integration
 
