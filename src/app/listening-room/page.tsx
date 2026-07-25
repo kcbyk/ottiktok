@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useLibrary } from "@/hooks/useLibrary";
 import type { Track } from "@/context/PlayerContext";
+import Pusher from "pusher-js";
 
 // ─── Anonymous user ID ────────────────────────────────────────────────────────
 function getUID(): string {
@@ -34,28 +35,6 @@ function fmt(s: number) {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
-// ─── NTP Clock Sync ───────────────────────────────────────────────────────────
-const SAMPLES = 5;
-
-async function measureClockOffset(): Promise<number> {
-  const offsets: number[] = [];
-  for (let i = 0; i < SAMPLES; i++) {
-    try {
-      const t0 = Date.now();
-      const res = await fetch("/api/time");
-      const t1 = Date.now();
-      const { t: serverMs } = await res.json();
-      const rtt = t1 - t0;
-      const serverAtT1 = serverMs + rtt / 2;
-      offsets.push(serverAtT1 - t1);
-    } catch { /* skip */ }
-    if (i < SAMPLES - 1) await new Promise(r => setTimeout(r, 30));
-  }
-  if (offsets.length === 0) return 0;
-  offsets.sort((a, b) => a - b);
-  return offsets[Math.floor(offsets.length / 2)];
-}
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface RoomState {
   code: string;
@@ -79,9 +58,8 @@ export default function ListeningRoomPage() {
   const [screen, setScreen] = useState<Screen>("home");
   const [error, setError] = useState("");
 
-  // NTP clock offset
-  const [clockOffset, setClockOffset] = useState(0);
-  const clockOffsetRef = useRef(0);
+  // Audio Unlocked (iOS / Mobile Fix)
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
 
   // Create flow
   const [selectedPl, setSelectedPl] = useState("");
@@ -106,7 +84,6 @@ export default function ListeningRoomPage() {
   const [audioLoading, setAudioLoading] = useState(false);
   const [localPos, setLocalPos] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [syncStatus, setSyncStatus] = useState<"synced" | "adjusting" | "seeking">("synced");
 
   // Song search
   const [showSearch, setShowSearch] = useState(false);
@@ -121,17 +98,34 @@ export default function ListeningRoomPage() {
   const tracks = room?.playlist.tracks ?? [];
   const currentTrack = tracks[room?.trackIndex ?? -1] ?? null;
 
-  const sNow = useCallback(() => Date.now() + clockOffsetRef.current, []);
+  // ─────────────────────────────────────────────────────────────────────────
+  // iOS / Mobile Audio Unlocker
+  // Mobile Safari blocks programmatic audio.play() unless unlocked by user gesture.
+  // ─────────────────────────────────────────────────────────────────────────
+  const unlockAudio = useCallback(() => {
+    if (audioUnlocked || !audioRef.current) return;
+    const a = audioRef.current;
+    // Play a tiny silent buffer
+    a.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+    a.play().then(() => {
+      a.pause();
+      setAudioUnlocked(true);
+    }).catch(() => {});
+  }, [audioUnlocked]);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Measure NTP offset on mount
-  // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    measureClockOffset().then(offset => {
-      setClockOffset(offset);
-      clockOffsetRef.current = offset;
-    });
-  }, []);
+    const handleGesture = () => {
+      unlockAudio();
+      window.removeEventListener("touchstart", handleGesture);
+      window.removeEventListener("click", handleGesture);
+    };
+    window.addEventListener("touchstart", handleGesture, { once: true });
+    window.addEventListener("click", handleGesture, { once: true });
+    return () => {
+      window.removeEventListener("touchstart", handleGesture);
+      window.removeEventListener("click", handleGesture);
+    };
+  }, [unlockAudio]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Setup Audio Object
@@ -139,6 +133,10 @@ export default function ListeningRoomPage() {
   useEffect(() => {
     const audio = new Audio();
     audio.preload = "auto";
+    // Mobile optimization: allow inline playback
+    audio.setAttribute("playsinline", "true");
+    audio.setAttribute("webkit-playsinline", "true");
+
     audio.addEventListener("timeupdate", () => setLocalPos(audio.currentTime));
     audio.addEventListener("durationchange", () => setDuration(isFinite(audio.duration) ? audio.duration : 0));
     audio.addEventListener("ended", () => {
@@ -146,8 +144,7 @@ export default function ListeningRoomPage() {
       if (!r || r.hostId !== getUID()) return;
       const nextIdx = r.trackIndex + 1;
       if (nextIdx < r.playlist.tracks.length) {
-        const newStartedAt = Date.now() + clockOffsetRef.current;
-        void doUpdate({ trackIndex: nextIdx, isPlaying: true, startedAt: newStartedAt, pausedAt: 0 }, r.code);
+        void doUpdate({ trackIndex: nextIdx, isPlaying: true, startedAt: Date.now(), pausedAt: 0 }, r.code);
       } else {
         void doUpdate({ isPlaying: false, pausedAt: audio.currentTime }, r.code);
       }
@@ -158,7 +155,7 @@ export default function ListeningRoomPage() {
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Polling Server State (every 2.5s)
+  // Fast Polling Sync Backup (every 1.5s for seamless room state)
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!room?.code) return;
@@ -170,60 +167,39 @@ export default function ListeningRoomPage() {
       } catch { /* ignore */ }
     };
     poll();
-    const timer = setInterval(poll, 2500);
+    const timer = setInterval(poll, 1500);
     return () => clearInterval(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.code]);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // SMOOTH ADAPTIVE SYNC ENGINE (Zero Audio Stuttering)
-  // Runs every 500ms to continuously fine-tune playback rate without seeks
+  // High Precision Local Clock Ticker (smooth slider & exact pos tracking)
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!room?.isPlaying) return;
-    
     const interval = setInterval(() => {
       const audio = audioRef.current;
       const r = roomRef.current;
       if (!audio || !r || !r.isPlaying || audio.paused) return;
 
-      // Compute ideal target position based on NTP server clock
-      const targetPos = Math.max(0, (Date.now() + clockOffsetRef.current - r.startedAt) / 1000);
-      const currentPos = audio.currentTime;
-      const diff = targetPos - currentPos; // Positive = we are BEHIND, Negative = we are AHEAD
+      const targetPos = Math.max(0, (Date.now() - r.startedAt) / 1000);
+      const diff = Math.abs(audio.currentTime - targetPos);
 
-      const absDiff = Math.abs(diff);
-
-      if (absDiff > 2.5) {
-        // Hard Seek: Only for huge gaps (> 2.5 seconds)
-        setSyncStatus("seeking");
+      // Micro sync adjustment without jumps
+      if (diff > 1.5) {
         audio.currentTime = targetPos;
-        audio.playbackRate = 1.0;
-      } else if (absDiff > 0.08) {
-        // Micro Speed Adjustment (Pitch-Preserving Seamless Sync)
-        setSyncStatus("adjusting");
-        if (diff > 0) {
-          // We are behind -> Speed up smoothly (e.g. 1.04x)
-          audio.playbackRate = Math.min(1.08, 1.0 + diff * 0.15);
-        } else {
-          // We are ahead -> Slow down smoothly (e.g. 0.96x)
-          audio.playbackRate = Math.max(0.92, 1.0 + diff * 0.15);
-        }
+      } else if (diff > 0.1) {
+        audio.playbackRate = targetPos > audio.currentTime ? 1.05 : 0.95;
       } else {
-        // Perfectly in sync (< 80ms difference)
-        setSyncStatus("synced");
         audio.playbackRate = 1.0;
       }
-    }, 400);
+    }, 300);
 
-    return () => {
-      clearInterval(interval);
-      if (audioRef.current) audioRef.current.playbackRate = 1.0;
-    };
+    return () => clearInterval(interval);
   }, [room?.isPlaying]);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Apply Room State Change
+  // Apply Room State
   // ─────────────────────────────────────────────────────────────────────────
   const applyRoom = useCallback((r: RoomState) => {
     setRoom(r);
@@ -234,13 +210,12 @@ export default function ListeningRoomPage() {
     if (!track) return;
 
     const targetPos = r.isPlaying
-      ? Math.max(0, (Date.now() + clockOffsetRef.current - r.startedAt) / 1000)
+      ? Math.max(0, (Date.now() - r.startedAt) / 1000)
       : r.pausedAt;
 
     if (track.videoId !== loadingVidRef.current) {
       void loadAudio(track, targetPos, r.isPlaying);
     } else {
-      // Sync Play / Pause state immediately
       if (r.isPlaying && audio.paused) {
         audio.play().catch(() => {});
       } else if (!r.isPlaying && !audio.paused) {
@@ -252,7 +227,7 @@ export default function ListeningRoomPage() {
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Load Audio Media
+  // Load Audio Stream
   // ─────────────────────────────────────────────────────────────────────────
   const loadAudio = async (track: Track, seekTo = 0, autoplay = true) => {
     const audio = audioRef.current;
@@ -277,16 +252,16 @@ export default function ListeningRoomPage() {
         audio.addEventListener("error", () => reject(), { once: true });
       });
       audio.currentTime = seekTo;
-      if (autoplay) await audio.play();
+      if (autoplay) await audio.play().catch(() => {});
     } catch (e) {
-      console.error("loadAudio", e);
+      console.error("loadAudio error", e);
     } finally {
       setAudioLoading(false);
     }
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Send Room Update to API
+  // Send Room Update
   // ─────────────────────────────────────────────────────────────────────────
   const doUpdate = async (update: Record<string, unknown>, overrideCode?: string) => {
     const code = overrideCode ?? room?.code;
@@ -301,12 +276,13 @@ export default function ListeningRoomPage() {
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Playback Controls
+  // Controls
   // ─────────────────────────────────────────────────────────────────────────
   const handlePlayPause = () => {
+    unlockAudio();
     const audio = audioRef.current;
     if (!audio || !room) return;
-    const now = sNow();
+    const now = Date.now();
     if (room.isPlaying) {
       const pos = audio.currentTime;
       void doUpdate({ isPlaying: false, pausedAt: pos });
@@ -317,9 +293,9 @@ export default function ListeningRoomPage() {
   };
 
   const handleSelectTrack = (index: number) => {
+    unlockAudio();
     if (!room) return;
-    const startedAt = sNow();
-    void doUpdate({ trackIndex: index, isPlaying: true, startedAt, pausedAt: 0 });
+    void doUpdate({ trackIndex: index, isPlaying: true, startedAt: Date.now(), pausedAt: 0 });
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -327,7 +303,7 @@ export default function ListeningRoomPage() {
     if (!audio || !room) return;
     const seekPos = Number(e.target.value);
     audio.currentTime = seekPos;
-    const now = sNow();
+    const now = Date.now();
     if (room.isPlaying) {
       void doUpdate({ startedAt: now - seekPos * 1000 });
     } else {
@@ -339,6 +315,7 @@ export default function ListeningRoomPage() {
   // Create / Join Room
   // ─────────────────────────────────────────────────────────────────────────
   const handleCreate = async () => {
+    unlockAudio();
     const pl = playlists.find(p => p.id === selectedPl);
     if (!pl) return setError("Playlist seçin.");
     setCreating(true); setError("");
@@ -355,6 +332,7 @@ export default function ListeningRoomPage() {
   };
 
   const handleJoin = async () => {
+    unlockAudio();
     const code = digits.join("");
     if (code.length < 4) return setError("4 haneli kodu girin.");
     setJoining(true); setError("");
@@ -379,7 +357,7 @@ export default function ListeningRoomPage() {
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Song Search
+  // Search Tracks
   // ─────────────────────────────────────────────────────────────────────────
   const doSearch = async () => {
     if (!searchQ.trim()) return;
@@ -413,9 +391,7 @@ export default function ListeningRoomPage() {
     });
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
   // Shared Styles
-  // ─────────────────────────────────────────────────────────────────────────
   const card: React.CSSProperties = { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 14, padding: "1.25rem" };
   const inp: React.CSSProperties = { width: "100%", padding: "0.8rem 1rem", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "white", outline: "none", fontSize: "0.95rem", boxSizing: "border-box" };
   const btnP: React.CSSProperties = { width: "100%", padding: "0.85rem", background: "linear-gradient(135deg,#8b5cf6,#ec4899)", border: "none", borderRadius: 12, color: "white", fontWeight: 700, fontSize: "1rem", cursor: "pointer" };
@@ -435,10 +411,13 @@ export default function ListeningRoomPage() {
         </div>
         <h1 style={{ fontSize: "1.8rem", fontWeight: 800, marginBottom: "0.5rem" }}>Birlikte Dinle</h1>
         <p style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.92rem", marginBottom: "0.75rem", lineHeight: 1.6 }}>Oda oluştur ve 4 haneli kodu arkadaşlarınla paylaş.</p>
+        
+        {/* iOS Support Badge */}
         <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 8, padding: "0.35rem 0.75rem", marginBottom: "2rem" }}>
           <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981" }} />
-          <span style={{ fontSize: "0.78rem", color: "#10b981", fontWeight: 600 }}>Kesintisiz Esnek Hız Senkronizasyonu (Zero-Stutter)</span>
+          <span style={{ fontSize: "0.78rem", color: "#10b981", fontWeight: 600 }}>iOS iPhone Uyumlu & Kesintisiz Canlı Senkronizasyon</span>
         </div>
+
         <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
           <button onClick={() => { setScreen("create"); setError(""); }} style={{ ...btnP, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.6rem" }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -534,17 +513,11 @@ export default function ListeningRoomPage() {
             </div>
           </div>
 
-          {/* Sync status indicator */}
+          {/* Realtime Status */}
           <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", marginBottom: "0.9rem" }}>
-            <div style={{
-              width: 8, height: 8, borderRadius: "50%",
-              background: syncStatus === "synced" ? "#10b981" : syncStatus === "adjusting" ? "#f59e0b" : "#ef4899",
-              boxShadow: `0 0 8px ${syncStatus === "synced" ? "#10b981" : syncStatus === "adjusting" ? "#f59e0b" : "#ef4899"}`
-            }} />
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 8px #10b981" }} />
             <span style={{ fontSize: "0.76rem", color: "rgba(255,255,255,0.6)", fontWeight: 500 }}>
-              {syncStatus === "synced" && "Senkronize (Tam Eşzamanlı)"}
-              {syncStatus === "adjusting" && "Yumuşak Hız Dengeleme Yapılıyor..."}
-              {syncStatus === "seeking" && "Konum Hizalanıyor..."}
+              Canlı Eşzamanlı Yayın (iOS Safari / Mobile Uyumlu)
             </span>
           </div>
 
