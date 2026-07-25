@@ -166,10 +166,12 @@ export default function ListeningRoomPage() {
     const poll = async () => {
       try {
         const sentAt = Date.now();
-        const res = await rfetch(`/api/listening-room?code=${code}`);
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 5000); // 5s timeout
+        const res = await rfetch(`/api/listening-room?code=${code}`, { signal: ctrl.signal });
+        clearTimeout(timer);
         if (res.ok) {
           const data: RoomState = await res.json();
-          // Server round-trip ortalamasını kullanarak clock offset hesapla
           const rtt = Date.now() - sentAt;
           const serverNow = data.updatedAt + rtt / 2;
           clockOffsetRef.current = serverNow - Date.now();
@@ -257,23 +259,47 @@ export default function ListeningRoomPage() {
     setAudioLoading(true);
     audio.pause();
     audio.src = "";
+
+    // Timeout ile donmayı önle
+    const TIMEOUT = 15000;
+
     try {
       let url = "";
-      const r1 = await fetch(`/api/playlist?videoId=${track.videoId}`);
-      if (r1.ok) { const d1 = await r1.json(); url = d1.audioUrl || d1.url || ""; }
+      const ctrl1 = new AbortController();
+      const t1 = setTimeout(() => ctrl1.abort(), TIMEOUT);
+      try {
+        const r1 = await fetch(`/api/playlist?videoId=${track.videoId}`, { signal: ctrl1.signal });
+        clearTimeout(t1);
+        if (r1.ok) { const d1 = await r1.json(); url = d1.audioUrl || d1.url || ""; }
+      } catch { clearTimeout(t1); }
+
       if (!url) {
-        const r2 = await fetch(`/api/youtube-media/stream?videoId=${track.videoId}`);
-        if (r2.ok) { const d2 = await r2.json(); url = d2.url || d2.audioUrl || ""; }
+        const ctrl2 = new AbortController();
+        const t2 = setTimeout(() => ctrl2.abort(), TIMEOUT);
+        try {
+          const r2 = await fetch(`/api/youtube-media/stream?videoId=${track.videoId}`, { signal: ctrl2.signal });
+          clearTimeout(t2);
+          if (r2.ok) { const d2 = await r2.json(); url = d2.url || d2.audioUrl || ""; }
+        } catch { clearTimeout(t2); }
       }
+
       if (!url) throw new Error("URL alınamadı");
+
       audio.src = url;
       audio.load();
-      await new Promise<void>((resolve, reject) => {
-        audio.addEventListener("canplay", () => resolve(), { once: true });
-        audio.addEventListener("error", () => reject(), { once: true });
+
+      // Timeout ile canplay bekleme — takılmayı önler
+      await new Promise<void>((resolve) => {
+        const done = () => { clearTimeout(timer); resolve(); };
+        const timer = setTimeout(done, 8000); // 8s'de vazgeç, yine de oynat
+        audio.addEventListener("canplay", done, { once: true });
+        audio.addEventListener("error", done, { once: true });
       });
-      audio.currentTime = seekTo;
-      if (autoplay) await audio.play().catch(() => {});
+
+      audio.currentTime = Math.max(0, seekTo);
+      if (autoplay) {
+        await audio.play().catch(() => {});
+      }
     } catch (e) {
       console.error("loadAudio error", e);
     } finally {
@@ -288,10 +314,14 @@ export default function ListeningRoomPage() {
     const code = overrideCode ?? room?.code;
     if (!code) return;
     try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 5000);
       const res = await rfetch("/api/listening-room", {
         method: "PATCH",
         body: JSON.stringify({ code, update }),
+        signal: ctrl.signal,
       });
+      clearTimeout(timer);
       if (res.ok) setRoom(await res.json());
     } catch { /* ignore */ }
   };
