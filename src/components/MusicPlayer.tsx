@@ -4,7 +4,7 @@ import { usePlayer } from "@/context/PlayerContext";
 import { useEffect, useRef, useState, useCallback } from "react";
 
 export default function MusicPlayer() {
-  const { currentTrack, isPlaying, play, pause, nextTrack, prevTrack, setIsPlaying, closePlayer, queue, listeningRoomId, syncListeningPosition } = usePlayer();
+  const { currentTrack, isPlaying, play, pause, nextTrack, prevTrack, setIsPlaying, closePlayer, queue } = usePlayer();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -187,9 +187,8 @@ export default function MusicPlayer() {
     if (audioRef.current) {
       audioRef.current.currentTime = time;
       setProgress(time);
-      if (listeningRoomId) syncListeningPosition(time);
     }
-  }, [listeningRoomId, syncListeningPosition]);
+  }, []);
 
   const handleVolume = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setVolume(Number(e.target.value));
