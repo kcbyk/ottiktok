@@ -58,6 +58,27 @@ export default function ListeningRoomPage() {
   const [screen, setScreen] = useState<Screen>("home");
   const [error, setError] = useState("");
 
+  // Sayfa yenilenince odaya geri dön
+  useEffect(() => {
+    const savedCode = sessionStorage.getItem("listening_room_code");
+    if (!savedCode) return;
+    const rejoin = async () => {
+      try {
+        const res = await rfetch(`/api/listening-room?code=${savedCode}`);
+        if (res.ok) {
+          setRoom(await res.json());
+          setScreen("room");
+        } else {
+          sessionStorage.removeItem("listening_room_code");
+        }
+      } catch {
+        sessionStorage.removeItem("listening_room_code");
+      }
+    };
+    void rejoin();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Audio Unlocked (iOS / Mobile Fix)
   const [audioUnlocked, setAudioUnlocked] = useState(false);
 
@@ -401,7 +422,9 @@ export default function ListeningRoomPage() {
         body: JSON.stringify({ action: "create", playlist: { id: pl.id, name: pl.name, tracks: pl.tracks } }),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Hata");
-      setRoom(await res.json());
+      const data = await res.json();
+      sessionStorage.setItem("listening_room_code", data.code);
+      setRoom(data);
       setScreen("room");
     } catch (e) { setError(e instanceof Error ? e.message : "Hata"); }
     finally { setCreating(false); }
@@ -418,7 +441,9 @@ export default function ListeningRoomPage() {
         body: JSON.stringify({ action: "join", code }),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Oda bulunamadı");
-      setRoom(await res.json());
+      const data = await res.json();
+      sessionStorage.setItem("listening_room_code", data.code);
+      setRoom(data);
       setScreen("room");
     } catch (e) { setError(e instanceof Error ? e.message : "Oda bulunamadı"); }
     finally { setJoining(false); }
@@ -456,6 +481,8 @@ export default function ListeningRoomPage() {
     audioRef.current?.pause();
     if (audioRef.current) audioRef.current.src = "";
     loadingVidRef.current = "";
+    urlCacheRef.current.clear();
+    sessionStorage.removeItem("listening_room_code");
     setRoom(null); setLocalPos(0); setDuration(0);
     setScreen("home");
   };
