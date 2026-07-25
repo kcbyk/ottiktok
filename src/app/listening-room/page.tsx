@@ -35,20 +35,6 @@ function fmt(s: number) {
 }
 
 // ─── NTP Clock Sync ───────────────────────────────────────────────────────────
-/**
- * Measure the offset between local clock and server clock.
- * Algorithm (simplified NTP):
- *   t0 = local time before request
- *   t1 = local time after response
- *   serverT = time server reported
- *   RTT = t1 - t0
- *   Server time at response receipt ≈ serverT + RTT/2
- *   offset = (serverT + RTT/2) - t1
- *
- * We take 5 samples and use the median to filter network jitter.
- *
- * After this: serverNow() = Date.now() + offset  ← estimated server time
- */
 const SAMPLES = 5;
 
 async function measureClockOffset(): Promise<number> {
@@ -60,15 +46,14 @@ async function measureClockOffset(): Promise<number> {
       const t1 = Date.now();
       const { t: serverMs } = await res.json();
       const rtt = t1 - t0;
-      // Estimate: server time when this client received the response
       const serverAtT1 = serverMs + rtt / 2;
       offsets.push(serverAtT1 - t1);
-    } catch { /* skip failed samples */ }
+    } catch { /* skip */ }
     if (i < SAMPLES - 1) await new Promise(r => setTimeout(r, 30));
   }
   if (offsets.length === 0) return 0;
   offsets.sort((a, b) => a - b);
-  return offsets[Math.floor(offsets.length / 2)]; // median
+  return offsets[Math.floor(offsets.length / 2)];
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -78,7 +63,7 @@ interface RoomState {
   playlist: { id: string; name: string; tracks: Track[] };
   trackIndex: number;
   isPlaying: boolean;
-  startedAt: number;  // server-ms: "track was at position 0 at this server time"
+  startedAt: number;  // server-ms: "track position was 0 at this server time"
   pausedAt: number;   // seconds position when paused
   updatedAt: number;
   participants: string[];
@@ -86,7 +71,6 @@ interface RoomState {
 
 type Screen = "home" | "create" | "join" | "room";
 
-// ─── Component ────────────────────────────────────────────────────────────────
 export default function ListeningRoomPage() {
   const { playlists, isLoaded } = useLibrary();
   const userId = getUID();
@@ -95,7 +79,7 @@ export default function ListeningRoomPage() {
   const [screen, setScreen] = useState<Screen>("home");
   const [error, setError] = useState("");
 
-  // NTP clock offset (client offset relative to server)
+  // NTP clock offset
   const [clockOffset, setClockOffset] = useState(0);
   const clockOffsetRef = useRef(0);
 
@@ -111,18 +95,18 @@ export default function ListeningRoomPage() {
   const d2 = useRef<HTMLInputElement>(null);
   const d3 = useRef<HTMLInputElement>(null);
 
-  // Room
+  // Room State
   const [room, setRoom] = useState<RoomState | null>(null);
   const roomRef = useRef<RoomState | null>(null);
   useEffect(() => { roomRef.current = room; }, [room]);
 
-  // Audio
+  // Audio State
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const loadingVidRef = useRef("");
   const [audioLoading, setAudioLoading] = useState(false);
   const [localPos, setLocalPos] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [localPlaying, setLocalPlaying] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<"synced" | "adjusting" | "seeking">("synced");
 
   // Song search
   const [showSearch, setShowSearch] = useState(false);
@@ -137,19 +121,10 @@ export default function ListeningRoomPage() {
   const tracks = room?.playlist.tracks ?? [];
   const currentTrack = tracks[room?.trackIndex ?? -1] ?? null;
 
-  // ── Helper: server "now" using measured offset ────────────────────────────
   const sNow = useCallback(() => Date.now() + clockOffsetRef.current, []);
 
-  // ── Helper: compute expected playback position from room state ────────────
-  const estimatePosition = useCallback((r: RoomState): number => {
-    if (r.isPlaying) {
-      return Math.max(0, (Date.now() + clockOffsetRef.current - r.startedAt) / 1000);
-    }
-    return r.pausedAt;
-  }, []);
-
   // ─────────────────────────────────────────────────────────────────────────
-  // Measure NTP offset once on mount
+  // Measure NTP offset on mount
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     measureClockOffset().then(offset => {
@@ -159,15 +134,13 @@ export default function ListeningRoomPage() {
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Audio setup (once on mount)
+  // Setup Audio Object
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const audio = new Audio();
     audio.preload = "auto";
     audio.addEventListener("timeupdate", () => setLocalPos(audio.currentTime));
     audio.addEventListener("durationchange", () => setDuration(isFinite(audio.duration) ? audio.duration : 0));
-    audio.addEventListener("playing", () => setLocalPlaying(true));
-    audio.addEventListener("pause", () => setLocalPlaying(false));
     audio.addEventListener("ended", () => {
       const r = roomRef.current;
       if (!r || r.hostId !== getUID()) return;
@@ -185,7 +158,7 @@ export default function ListeningRoomPage() {
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Polling (every 2s — NTP means we only need this for track changes/events)
+  // Polling Server State (every 2.5s)
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!room?.code) return;
@@ -197,29 +170,60 @@ export default function ListeningRoomPage() {
       } catch { /* ignore */ }
     };
     poll();
-    const timer = setInterval(poll, 2000);
+    const timer = setInterval(poll, 2500);
     return () => clearInterval(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.code]);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Local position ticker — no server needed, pure math!
+  // SMOOTH ADAPTIVE SYNC ENGINE (Zero Audio Stuttering)
+  // Runs every 500ms to continuously fine-tune playback rate without seeks
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!room?.isPlaying) return;
-    const tick = () => {
+    
+    const interval = setInterval(() => {
+      const audio = audioRef.current;
       const r = roomRef.current;
-      if (r?.isPlaying) {
-        const pos = Math.max(0, (Date.now() + clockOffsetRef.current - r.startedAt) / 1000);
-        setLocalPos(pos);
+      if (!audio || !r || !r.isPlaying || audio.paused) return;
+
+      // Compute ideal target position based on NTP server clock
+      const targetPos = Math.max(0, (Date.now() + clockOffsetRef.current - r.startedAt) / 1000);
+      const currentPos = audio.currentTime;
+      const diff = targetPos - currentPos; // Positive = we are BEHIND, Negative = we are AHEAD
+
+      const absDiff = Math.abs(diff);
+
+      if (absDiff > 2.5) {
+        // Hard Seek: Only for huge gaps (> 2.5 seconds)
+        setSyncStatus("seeking");
+        audio.currentTime = targetPos;
+        audio.playbackRate = 1.0;
+      } else if (absDiff > 0.08) {
+        // Micro Speed Adjustment (Pitch-Preserving Seamless Sync)
+        setSyncStatus("adjusting");
+        if (diff > 0) {
+          // We are behind -> Speed up smoothly (e.g. 1.04x)
+          audio.playbackRate = Math.min(1.08, 1.0 + diff * 0.15);
+        } else {
+          // We are ahead -> Slow down smoothly (e.g. 0.96x)
+          audio.playbackRate = Math.max(0.92, 1.0 + diff * 0.15);
+        }
+      } else {
+        // Perfectly in sync (< 80ms difference)
+        setSyncStatus("synced");
+        audio.playbackRate = 1.0;
       }
+    }, 400);
+
+    return () => {
+      clearInterval(interval);
+      if (audioRef.current) audioRef.current.playbackRate = 1.0;
     };
-    const id = setInterval(tick, 250); // 4Hz ticker for smooth progress bar
-    return () => clearInterval(id);
-  }, [room?.isPlaying, room?.startedAt]);
+  }, [room?.isPlaying]);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Apply room state from server
+  // Apply Room State Change
   // ─────────────────────────────────────────────────────────────────────────
   const applyRoom = useCallback((r: RoomState) => {
     setRoom(r);
@@ -229,25 +233,26 @@ export default function ListeningRoomPage() {
     const track = r.playlist.tracks[r.trackIndex];
     if (!track) return;
 
-    // Compute expected position using NTP math
-    const estPos = estimatePosition(r);
+    const targetPos = r.isPlaying
+      ? Math.max(0, (Date.now() + clockOffsetRef.current - r.startedAt) / 1000)
+      : r.pausedAt;
 
     if (track.videoId !== loadingVidRef.current) {
-      void loadAudio(track, estPos, r.isPlaying);
+      void loadAudio(track, targetPos, r.isPlaying);
     } else {
-      // Same track — tight sync: only correct if drift > 1 second
-      const delta = Math.abs(audio.currentTime - estPos);
-      if (delta > 1.0) {
-        audio.currentTime = estPos;
+      // Sync Play / Pause state immediately
+      if (r.isPlaying && audio.paused) {
+        audio.play().catch(() => {});
+      } else if (!r.isPlaying && !audio.paused) {
+        audio.pause();
+        audio.currentTime = r.pausedAt;
+        audio.playbackRate = 1.0;
       }
-      if (r.isPlaying && audio.paused) audio.play().catch(() => {});
-      else if (!r.isPlaying && !audio.paused) audio.pause();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [estimatePosition]);
+  }, []);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Load audio
+  // Load Audio Media
   // ─────────────────────────────────────────────────────────────────────────
   const loadAudio = async (track: Track, seekTo = 0, autoplay = true) => {
     const audio = audioRef.current;
@@ -281,7 +286,7 @@ export default function ListeningRoomPage() {
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Send update to server
+  // Send Room Update to API
   // ─────────────────────────────────────────────────────────────────────────
   const doUpdate = async (update: Record<string, unknown>, overrideCode?: string) => {
     const code = overrideCode ?? room?.code;
@@ -296,18 +301,16 @@ export default function ListeningRoomPage() {
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Playback controls — NTP math applied here
+  // Playback Controls
   // ─────────────────────────────────────────────────────────────────────────
   const handlePlayPause = () => {
     const audio = audioRef.current;
     if (!audio || !room) return;
     const now = sNow();
     if (room.isPlaying) {
-      // Pause: record where we are
-      const pos = Math.max(0, (now - room.startedAt) / 1000);
+      const pos = audio.currentTime;
       void doUpdate({ isPlaying: false, pausedAt: pos });
     } else {
-      // Resume from pausedAt: set startedAt so that position = pausedAt now
       const startedAt = now - room.pausedAt * 1000;
       void doUpdate({ isPlaying: true, startedAt, pausedAt: room.pausedAt });
     }
@@ -326,7 +329,6 @@ export default function ListeningRoomPage() {
     audio.currentTime = seekPos;
     const now = sNow();
     if (room.isPlaying) {
-      // Adjust startedAt so current position = seekPos
       void doUpdate({ startedAt: now - seekPos * 1000 });
     } else {
       void doUpdate({ pausedAt: seekPos });
@@ -334,7 +336,7 @@ export default function ListeningRoomPage() {
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Create / Join room
+  // Create / Join Room
   // ─────────────────────────────────────────────────────────────────────────
   const handleCreate = async () => {
     const pl = playlists.find(p => p.id === selectedPl);
@@ -362,8 +364,7 @@ export default function ListeningRoomPage() {
         body: JSON.stringify({ action: "join", code }),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Oda bulunamadı");
-      const r: RoomState = await res.json();
-      setRoom(r);
+      setRoom(await res.json());
       setScreen("room");
     } catch (e) { setError(e instanceof Error ? e.message : "Oda bulunamadı"); }
     finally { setJoining(false); }
@@ -378,7 +379,7 @@ export default function ListeningRoomPage() {
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Song search
+  // Song Search
   // ─────────────────────────────────────────────────────────────────────────
   const doSearch = async () => {
     if (!searchQ.trim()) return;
@@ -401,7 +402,7 @@ export default function ListeningRoomPage() {
     audioRef.current?.pause();
     if (audioRef.current) audioRef.current.src = "";
     loadingVidRef.current = "";
-    setRoom(null); setLocalPos(0); setDuration(0); setLocalPlaying(false);
+    setRoom(null); setLocalPos(0); setDuration(0);
     setScreen("home");
   };
 
@@ -413,7 +414,7 @@ export default function ListeningRoomPage() {
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Shared styles
+  // Shared Styles
   // ─────────────────────────────────────────────────────────────────────────
   const card: React.CSSProperties = { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 14, padding: "1.25rem" };
   const inp: React.CSSProperties = { width: "100%", padding: "0.8rem 1rem", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "white", outline: "none", fontSize: "0.95rem", boxSizing: "border-box" };
@@ -434,9 +435,9 @@ export default function ListeningRoomPage() {
         </div>
         <h1 style={{ fontSize: "1.8rem", fontWeight: 800, marginBottom: "0.5rem" }}>Birlikte Dinle</h1>
         <p style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.92rem", marginBottom: "0.75rem", lineHeight: 1.6 }}>Oda oluştur ve 4 haneli kodu arkadaşlarınla paylaş.</p>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", background: "rgba(6,182,212,0.1)", border: "1px solid rgba(6,182,212,0.2)", borderRadius: 8, padding: "0.35rem 0.75rem", marginBottom: "2rem" }}>
-          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#06b6d4" }} />
-          <span style={{ fontSize: "0.78rem", color: "#06b6d4", fontWeight: 600 }}>NTP Zaman Senkronizasyonu — Sıfır Gecikme</span>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 8, padding: "0.35rem 0.75rem", marginBottom: "2rem" }}>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981" }} />
+          <span style={{ fontSize: "0.78rem", color: "#10b981", fontWeight: 600 }}>Kesintisiz Esnek Hız Senkronizasyonu (Zero-Stutter)</span>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
           <button onClick={() => { setScreen("create"); setError(""); }} style={{ ...btnP, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.6rem" }}>
@@ -506,10 +507,6 @@ export default function ListeningRoomPage() {
 
   // ════════════════ ROOM ════════════════════════════════════════════════════
   if (screen === "room" && room) {
-    const displayPos = room.isPlaying
-      ? Math.max(0, (Date.now() + clockOffset - room.startedAt) / 1000)
-      : room.pausedAt;
-
     return (
       <div className="glass-panel" style={{ padding: "1.5rem", maxWidth: 700, margin: "0 auto", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: -80, right: -80, width: 220, height: 220, background: "rgba(139,92,246,0.18)", filter: "blur(80px)", borderRadius: "50%", pointerEvents: "none", zIndex: 0 }} />
@@ -537,11 +534,17 @@ export default function ListeningRoomPage() {
             </div>
           </div>
 
-          {/* NTP sync indicator */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.9rem" }}>
-            <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#06b6d4", boxShadow: "0 0 6px #06b6d4" }} />
-            <span style={{ fontSize: "0.74rem", color: "rgba(255,255,255,0.4)" }}>
-              NTP sync · offset {clockOffset > 0 ? "+" : ""}{Math.round(clockOffset)}ms
+          {/* Sync status indicator */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", marginBottom: "0.9rem" }}>
+            <div style={{
+              width: 8, height: 8, borderRadius: "50%",
+              background: syncStatus === "synced" ? "#10b981" : syncStatus === "adjusting" ? "#f59e0b" : "#ef4899",
+              boxShadow: `0 0 8px ${syncStatus === "synced" ? "#10b981" : syncStatus === "adjusting" ? "#f59e0b" : "#ef4899"}`
+            }} />
+            <span style={{ fontSize: "0.76rem", color: "rgba(255,255,255,0.6)", fontWeight: 500 }}>
+              {syncStatus === "synced" && "Senkronize (Tam Eşzamanlı)"}
+              {syncStatus === "adjusting" && "Yumuşak Hız Dengeleme Yapılıyor..."}
+              {syncStatus === "seeking" && "Konum Hizalanıyor..."}
             </span>
           </div>
 
@@ -564,12 +567,12 @@ export default function ListeningRoomPage() {
 
                 {/* Progress */}
                 <input type="range" min={0} max={duration || 1} step={0.1}
-                  value={Math.min(displayPos, duration || 1)}
+                  value={Math.min(localPos, duration || 1)}
                   onChange={handleSeek}
                   style={{ width: "100%", accentColor: "#8b5cf6", cursor: "pointer" }}
                 />
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
-                  <span>{fmt(displayPos)}</span>
+                  <span>{fmt(localPos)}</span>
                   <span>{fmt(duration)}</span>
                 </div>
 
