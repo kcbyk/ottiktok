@@ -166,10 +166,7 @@ export default function ListeningRoomPage() {
     const poll = async () => {
       try {
         const sentAt = Date.now();
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 5000); // 5s timeout
-        const res = await rfetch(`/api/listening-room?code=${code}`, { signal: ctrl.signal });
-        clearTimeout(timer);
+        const res = await rfetch(`/api/listening-room?code=${code}`);
         if (res.ok) {
           const data: RoomState = await res.json();
           const rtt = Date.now() - sentAt;
@@ -314,14 +311,10 @@ export default function ListeningRoomPage() {
     const code = overrideCode ?? room?.code;
     if (!code) return;
     try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 5000);
       const res = await rfetch("/api/listening-room", {
         method: "PATCH",
         body: JSON.stringify({ code, update }),
-        signal: ctrl.signal,
       });
-      clearTimeout(timer);
       if (res.ok) setRoom(await res.json());
     } catch { /* ignore */ }
   };
