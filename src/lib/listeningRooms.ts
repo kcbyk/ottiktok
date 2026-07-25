@@ -1,13 +1,24 @@
 import type { Track } from "@/context/PlayerContext";
 
+/**
+ * Room state uses NTP-style timing instead of position+timestamp.
+ *
+ * When PLAYING:
+ *   currentPosition(seconds) = (serverNow - startedAt) / 1000
+ *   where startedAt is the server-ms when track was at position 0
+ *   (adjusted backward on seek: startedAt = serverNow - seekPos*1000)
+ *
+ * When PAUSED:
+ *   currentPosition = pausedAt (seconds)
+ */
 export interface RoomState {
-  code: string;          // 4-digit code, e.g. "4827"
+  code: string;
   hostId: string;
   playlist: { id: string; name: string; tracks: Track[] };
   trackIndex: number;
   isPlaying: boolean;
-  position: number;
-  positionSavedAt: number; // ms timestamp – used to estimate actual position on clients
+  startedAt: number;   // server-ms timestamp: "track position was 0 at this server time" (adjusted for seeks)
+  pausedAt: number;    // seconds position when paused (irrelevant when isPlaying)
   updatedAt: number;
   participants: string[];
 }
@@ -15,7 +26,7 @@ export interface RoomState {
 const rooms = new Map<string, RoomState>();
 
 function cleanup() {
-  const cutoff = Date.now() - 1000 * 60 * 60 * 6; // 6 hours
+  const cutoff = Date.now() - 1000 * 60 * 60 * 6;
   for (const [code, room] of rooms) {
     if (room.updatedAt < cutoff) rooms.delete(code);
   }
@@ -40,8 +51,8 @@ export function createRoom(userId: string, playlist: RoomState["playlist"]): Roo
     playlist,
     trackIndex: 0,
     isPlaying: false,
-    position: 0,
-    positionSavedAt: Date.now(),
+    startedAt: Date.now(), // track position = 0, paused
+    pausedAt: 0,
     updatedAt: Date.now(),
     participants: [userId],
   };
@@ -64,7 +75,8 @@ export function joinRoom(code: string, userId: string): RoomState | null {
 export interface RoomUpdate {
   trackIndex?: number;
   isPlaying?: boolean;
-  position?: number;        // if provided, also updates positionSavedAt
+  startedAt?: number;  // Computed by client: serverNow - currentPos*1000
+  pausedAt?: number;   // Seconds position when pausing
   addTrack?: Track;
   removeTrackIndex?: number;
 }
@@ -74,14 +86,12 @@ export function updateRoom(code: string, userId: string, update: RoomUpdate): Ro
   if (!room || !room.participants.includes(userId)) return null;
 
   if (update.addTrack) {
-    // Prevent duplicate videoIds
     if (!room.playlist.tracks.find(t => t.videoId === update.addTrack!.videoId)) {
       room.playlist.tracks.push(update.addTrack);
     }
   }
   if (typeof update.removeTrackIndex === "number") {
     room.playlist.tracks.splice(update.removeTrackIndex, 1);
-    // Adjust trackIndex if needed
     if (room.trackIndex >= room.playlist.tracks.length) {
       room.trackIndex = Math.max(0, room.playlist.tracks.length - 1);
     }
@@ -92,9 +102,11 @@ export function updateRoom(code: string, userId: string, update: RoomUpdate): Ro
   if (typeof update.isPlaying === "boolean") {
     room.isPlaying = update.isPlaying;
   }
-  if (typeof update.position === "number") {
-    room.position = update.position;
-    room.positionSavedAt = Date.now();
+  if (typeof update.startedAt === "number") {
+    room.startedAt = update.startedAt;
+  }
+  if (typeof update.pausedAt === "number") {
+    room.pausedAt = update.pausedAt;
   }
 
   room.updatedAt = Date.now();
@@ -105,7 +117,6 @@ export function leaveRoom(code: string, userId: string): void {
   const room = getRoom(code);
   if (!room) return;
   room.participants = room.participants.filter(p => p !== userId);
-  // Transfer host to next participant if host left
   if (room.hostId === userId && room.participants.length > 0) {
     room.hostId = room.participants[0];
   }
