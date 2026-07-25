@@ -85,6 +85,30 @@ export default function ListeningRoomPage() {
   const [localPos, setLocalPos] = useState(0);
   const [duration, setDuration] = useState(0);
 
+  // ─── URL Cache (preload) ──────────────────────────────────────────────────
+  // videoId → audio stream URL önbelleği
+  const urlCacheRef = useRef<Map<string, string>>(new Map());
+  const preloadingRef = useRef<Set<string>>(new Set());
+
+  // Bir videoId için URL'yi arka planda fetch et ve cache'e ekle
+  const prefetchUrl = useCallback(async (videoId: string) => {
+    if (!videoId) return;
+    if (urlCacheRef.current.has(videoId)) return; // zaten var
+    if (preloadingRef.current.has(videoId)) return; // zaten yükleniyor
+    preloadingRef.current.add(videoId);
+    try {
+      let url = "";
+      const r1 = await fetch(`/api/playlist?videoId=${videoId}`);
+      if (r1.ok) { const d = await r1.json(); url = d.audioUrl || d.url || ""; }
+      if (!url) {
+        const r2 = await fetch(`/api/youtube-media/stream?videoId=${videoId}`);
+        if (r2.ok) { const d = await r2.json(); url = d.url || d.audioUrl || ""; }
+      }
+      if (url) urlCacheRef.current.set(videoId, url);
+    } catch { /* ignore */ }
+    finally { preloadingRef.current.delete(videoId); }
+  }, []);
+
   // Song search
   const [showSearch, setShowSearch] = useState(false);
   const [searchQ, setSearchQ] = useState("");
@@ -97,6 +121,19 @@ export default function ListeningRoomPage() {
   const isHost = room?.hostId === userId;
   const tracks = room?.playlist.tracks ?? [];
   const currentTrack = tracks[room?.trackIndex ?? -1] ?? null;
+
+  // ─── Preload: oda güncellenince mevcut + sonraki şarkıyı hazırla ──────────
+  useEffect(() => {
+    if (!room) return;
+    const idx = room.trackIndex;
+    const trackList = room.playlist.tracks;
+    // Mevcut şarkı
+    if (trackList[idx]?.videoId) void prefetchUrl(trackList[idx].videoId);
+    // Sonraki şarkı
+    if (trackList[idx + 1]?.videoId) void prefetchUrl(trackList[idx + 1].videoId);
+    // Önceki şarkı (geri gitme için)
+    if (idx > 0 && trackList[idx - 1]?.videoId) void prefetchUrl(trackList[idx - 1].videoId);
+  }, [room?.trackIndex, room?.playlist.tracks, prefetchUrl]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // iOS / Mobile Audio Unlocker
@@ -257,27 +294,20 @@ export default function ListeningRoomPage() {
     audio.pause();
     audio.src = "";
 
-    // Timeout ile donmayı önle
-    const TIMEOUT = 15000;
-
     try {
-      let url = "";
-      const ctrl1 = new AbortController();
-      const t1 = setTimeout(() => ctrl1.abort(), TIMEOUT);
-      try {
-        const r1 = await fetch(`/api/playlist?videoId=${track.videoId}`, { signal: ctrl1.signal });
-        clearTimeout(t1);
-        if (r1.ok) { const d1 = await r1.json(); url = d1.audioUrl || d1.url || ""; }
-      } catch { clearTimeout(t1); }
+      // Önce cache'e bak — preload yapılmışsa anında hazır
+      let url = urlCacheRef.current.get(track.videoId) || "";
 
       if (!url) {
-        const ctrl2 = new AbortController();
-        const t2 = setTimeout(() => ctrl2.abort(), TIMEOUT);
-        try {
-          const r2 = await fetch(`/api/youtube-media/stream?videoId=${track.videoId}`, { signal: ctrl2.signal });
-          clearTimeout(t2);
+        // Cache'de yoksa fetch et
+        const r1 = await fetch(`/api/playlist?videoId=${track.videoId}`);
+        if (r1.ok) { const d1 = await r1.json(); url = d1.audioUrl || d1.url || ""; }
+        if (!url) {
+          const r2 = await fetch(`/api/youtube-media/stream?videoId=${track.videoId}`);
           if (r2.ok) { const d2 = await r2.json(); url = d2.url || d2.audioUrl || ""; }
-        } catch { clearTimeout(t2); }
+        }
+        // Cache'e ekle
+        if (url) urlCacheRef.current.set(track.videoId, url);
       }
 
       if (!url) throw new Error("URL alınamadı");
@@ -288,7 +318,7 @@ export default function ListeningRoomPage() {
       // Timeout ile canplay bekleme — takılmayı önler
       await new Promise<void>((resolve) => {
         const done = () => { clearTimeout(timer); resolve(); };
-        const timer = setTimeout(done, 8000); // 8s'de vazgeç, yine de oynat
+        const timer = setTimeout(done, 8000);
         audio.addEventListener("canplay", done, { once: true });
         audio.addEventListener("error", done, { once: true });
       });
@@ -299,6 +329,8 @@ export default function ListeningRoomPage() {
       }
     } catch (e) {
       console.error("loadAudio error", e);
+      // URL hatalıysa cache'den sil — bir sonraki denemede yeniden fetch edilsin
+      urlCacheRef.current.delete(track.videoId);
     } finally {
       setAudioLoading(false);
     }
