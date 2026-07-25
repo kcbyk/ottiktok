@@ -154,6 +154,9 @@ export default function ListeningRoomPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Clock offset: server time ile local time arasındaki fark
+  const clockOffsetRef = useRef(0); // ms cinsinden (serverTime - localTime)
+
   // ─────────────────────────────────────────────────────────────────────────
   // Fast Polling Sync Backup (every 1.5s for seamless room state)
   // ─────────────────────────────────────────────────────────────────────────
@@ -162,8 +165,16 @@ export default function ListeningRoomPage() {
     const code = room.code;
     const poll = async () => {
       try {
+        const sentAt = Date.now();
         const res = await rfetch(`/api/listening-room?code=${code}`);
-        if (res.ok) applyRoom(await res.json());
+        if (res.ok) {
+          const data: RoomState = await res.json();
+          // Server round-trip ortalamasını kullanarak clock offset hesapla
+          const rtt = Date.now() - sentAt;
+          const serverNow = data.updatedAt + rtt / 2;
+          clockOffsetRef.current = serverNow - Date.now();
+          applyRoom(data);
+        }
       } catch { /* ignore */ }
     };
     poll();
@@ -182,18 +193,25 @@ export default function ListeningRoomPage() {
       const r = roomRef.current;
       if (!audio || !r || !r.isPlaying || audio.paused) return;
 
-      const targetPos = Math.max(0, (Date.now() - r.startedAt) / 1000);
-      const diff = Math.abs(audio.currentTime - targetPos);
+      // Clock offset ile düzeltilmiş yerel zaman
+      const correctedNow = Date.now() + clockOffsetRef.current;
+      const targetPos = Math.max(0, (correctedNow - r.startedAt) / 1000);
+      const diff = audio.currentTime - targetPos;
 
-      // Micro sync adjustment without jumps
-      if (diff > 1.5) {
+      // Micro sync: küçük farklarda hız ayarla, büyük farklarda atla
+      if (Math.abs(diff) > 2.0) {
         audio.currentTime = targetPos;
-      } else if (diff > 0.1) {
-        audio.playbackRate = targetPos > audio.currentTime ? 1.05 : 0.95;
+        audio.playbackRate = 1.0;
+      } else if (diff > 0.15) {
+        // Lokal ilerde → yavaşlat
+        audio.playbackRate = 0.94;
+      } else if (diff < -0.15) {
+        // Lokal geride → hızlandır
+        audio.playbackRate = 1.06;
       } else {
         audio.playbackRate = 1.0;
       }
-    }, 300);
+    }, 250);
 
     return () => clearInterval(interval);
   }, [room?.isPlaying]);
@@ -209,14 +227,17 @@ export default function ListeningRoomPage() {
     const track = r.playlist.tracks[r.trackIndex];
     if (!track) return;
 
+    // Clock offset ile düzeltilmiş hedef pozisyon
+    const correctedNow = Date.now() + clockOffsetRef.current;
     const targetPos = r.isPlaying
-      ? Math.max(0, (Date.now() - r.startedAt) / 1000)
+      ? Math.max(0, (correctedNow - r.startedAt) / 1000)
       : r.pausedAt;
 
     if (track.videoId !== loadingVidRef.current) {
       void loadAudio(track, targetPos, r.isPlaying);
     } else {
       if (r.isPlaying && audio.paused) {
+        audio.currentTime = targetPos;
         audio.play().catch(() => {});
       } else if (!r.isPlaying && !audio.paused) {
         audio.pause();
