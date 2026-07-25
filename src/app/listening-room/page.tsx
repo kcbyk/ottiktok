@@ -307,55 +307,66 @@ export default function ListeningRoomPage() {
   // ─────────────────────────────────────────────────────────────────────────
   // Load Audio Stream
   // ─────────────────────────────────────────────────────────────────────────
-  const loadAudio = async (track: Track, seekTo = 0, autoplay = true) => {
+  // ─────────────────────────────────────────────────────────────────────────
+  // Load Audio Stream — NON-BLOCKING, UI asla donmaz
+  // ─────────────────────────────────────────────────────────────────────────
+  const loadAudio = useCallback((track: Track, seekTo = 0, autoplay = true) => {
     const audio = audioRef.current;
     if (!audio) return;
+
+    // Aynı track zaten yükleniyorsa atla
+    if (loadingVidRef.current === track.videoId && !audio.paused && autoplay) return;
+
     loadingVidRef.current = track.videoId;
     setAudioLoading(true);
     audio.pause();
     audio.src = "";
 
-    try {
-      // Önce cache'e bak — preload yapılmışsa anında hazır
-      let url = urlCacheRef.current.get(track.videoId) || "";
+    const doLoad = async () => {
+      try {
+        // Cache'de var mı?
+        let url = urlCacheRef.current.get(track.videoId) || "";
 
-      if (!url) {
-        // Cache'de yoksa fetch et
-        const r1 = await fetch(`/api/playlist?videoId=${track.videoId}`);
-        if (r1.ok) { const d1 = await r1.json(); url = d1.audioUrl || d1.url || ""; }
         if (!url) {
-          const r2 = await fetch(`/api/youtube-media/stream?videoId=${track.videoId}`);
-          if (r2.ok) { const d2 = await r2.json(); url = d2.url || d2.audioUrl || ""; }
+          // Paralel olarak iki kaynaktan dene
+          const [r1, r2] = await Promise.allSettled([
+            fetch(`/api/playlist?videoId=${track.videoId}`).then(r => r.ok ? r.json() : null),
+            fetch(`/api/youtube-media/stream?videoId=${track.videoId}`).then(r => r.ok ? r.json() : null),
+          ]);
+          if (r1.status === "fulfilled" && r1.value) url = r1.value.audioUrl || r1.value.url || "";
+          if (!url && r2.status === "fulfilled" && r2.value) url = r2.value.url || r2.value.audioUrl || "";
+          if (url) urlCacheRef.current.set(track.videoId, url);
         }
-        // Cache'e ekle
-        if (url) urlCacheRef.current.set(track.videoId, url);
+
+        if (!url) { setAudioLoading(false); return; }
+
+        // audioRef hâlâ aynı track'i yüklemeyi bekliyorsa devam et
+        if (loadingVidRef.current !== track.videoId) { setAudioLoading(false); return; }
+
+        audio.src = url;
+        audio.currentTime = Math.max(0, seekTo);
+        audio.load();
+
+        if (autoplay) {
+          // canplay'i 5 saniye bekle, gelmezse yine de play dene
+          await Promise.race([
+            new Promise<void>(res => audio.addEventListener("canplay", () => res(), { once: true })),
+            new Promise<void>(res => setTimeout(res, 5000)),
+          ]);
+          if (loadingVidRef.current === track.videoId) {
+            audio.play().catch(() => {});
+          }
+        }
+      } catch {
+        urlCacheRef.current.delete(track.videoId);
+      } finally {
+        if (loadingVidRef.current === track.videoId) setAudioLoading(false);
       }
+    };
 
-      if (!url) throw new Error("URL alınamadı");
-
-      audio.src = url;
-      audio.load();
-
-      // Timeout ile canplay bekleme — takılmayı önler
-      await new Promise<void>((resolve) => {
-        const done = () => { clearTimeout(timer); resolve(); };
-        const timer = setTimeout(done, 8000);
-        audio.addEventListener("canplay", done, { once: true });
-        audio.addEventListener("error", done, { once: true });
-      });
-
-      audio.currentTime = Math.max(0, seekTo);
-      if (autoplay) {
-        await audio.play().catch(() => {});
-      }
-    } catch (e) {
-      console.error("loadAudio error", e);
-      // URL hatalıysa cache'den sil — bir sonraki denemede yeniden fetch edilsin
-      urlCacheRef.current.delete(track.videoId);
-    } finally {
-      setAudioLoading(false);
-    }
-  };
+    // setTimeout ile macro-task'a at — UI block'u engelle
+    setTimeout(() => { void doLoad(); }, 0);
+  }, []);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Send Room Update
