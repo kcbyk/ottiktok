@@ -56,7 +56,9 @@ export async function GET(request: Request) {
     }
     
     return NextResponse.json({ results });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'YouTube araması sırasında bilinmeyen hata';
+    console.error('YouTube search failed:', error);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -4,7 +4,7 @@ import { usePlayer } from "@/context/PlayerContext";
 import { useEffect, useRef, useState, useCallback } from "react";
 
 export default function MusicPlayer() {
-  const { currentTrack, isPlaying, play, pause, nextTrack, prevTrack, setIsPlaying, closePlayer, queue } = usePlayer();
+  const { currentTrack, isPlaying, play, pause, nextTrack, prevTrack, setIsPlaying, closePlayer, queue, listeningRoomId, syncListeningPosition } = usePlayer();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -127,6 +127,19 @@ export default function MusicPlayer() {
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
 
+  useEffect(() => {
+    const onRemotePosition = (event: Event) => {
+      const position = (event as CustomEvent<number>).detail;
+      if (!audioRef.current || !Number.isFinite(position)) return;
+      if (Math.abs(audioRef.current.currentTime - position) > 1.5) {
+        audioRef.current.currentTime = position;
+        setProgress(position);
+      }
+    };
+    window.addEventListener("listening-room-position", onRemotePosition);
+    return () => window.removeEventListener("listening-room-position", onRemotePosition);
+  }, []);
+
   // Media Session API
   useEffect(() => {
     if (!currentTrack || !("mediaSession" in navigator)) return;
@@ -174,8 +187,9 @@ export default function MusicPlayer() {
     if (audioRef.current) {
       audioRef.current.currentTime = time;
       setProgress(time);
+      if (listeningRoomId) syncListeningPosition(time);
     }
-  }, []);
+  }, [listeningRoomId, syncListeningPosition]);
 
   const handleVolume = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setVolume(Number(e.target.value));

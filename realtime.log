@@ -1,0 +1,5 @@
+
+> ottiktok@0.1.0 realtime
+> tsx server/realtime.ts
+
+Realtime server listening on 3001

@@ -50,7 +50,14 @@ function ThinkingBox({ text, isStreaming }: { text: string; isStreaming: boolean
 }
 
 export default function PlaylistPage() {
+  const [creationMode, setCreationMode] = useState<"ai" | "manual">("ai");
   const [prompt, setPrompt]           = useState("");
+  const [manualName, setManualName]   = useState("");
+  const [manualDescription, setManualDescription] = useState("");
+  const [manualQuery, setManualQuery] = useState("");
+  const [manualResults, setManualResults] = useState<Song[]>([]);
+  const [manualTracks, setManualTracks] = useState<Song[]>([]);
+  const [manualSearching, setManualSearching] = useState(false);
   const [loading, setLoading]         = useState(false);
   const [playlist, setPlaylist]       = useState<Playlist | null>(null);
   const [songs, setSongs]             = useState<Song[]>([]);
@@ -65,6 +72,58 @@ export default function PlaylistPage() {
 
   const { setQueueAndPlay } = usePlayer();
   const { savePlaylist } = useLibrary();
+
+  const handleManualSearch = async () => {
+    if (!manualQuery.trim()) return;
+    setManualSearching(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/youtube-search?q=${encodeURIComponent(manualQuery)}`);
+      const responseText = await res.text();
+      let data: { results?: Song[]; error?: string };
+      try {
+        data = JSON.parse(responseText) as { results?: Song[]; error?: string };
+      } catch {
+        throw new Error(res.ok ? "Arama sunucusundan geçersiz yanıt geldi" : `Arama sunucusu hata verdi (${res.status})`);
+      }
+      if (!res.ok) throw new Error(data.error || "Şarkı aranamadı");
+      setManualResults((data.results || []).map((result) => ({
+        artist: result.artist,
+        title: result.title,
+        year: null,
+        videoId: result.videoId,
+        youtubeTitle: result.title,
+        thumbnail: result.thumbnail || null,
+      })));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Şarkı aranamadı");
+    } finally {
+      setManualSearching(false);
+    }
+  };
+
+  const addManualTrack = (song: Song) => {
+    if (!song.videoId || manualTracks.some((track) => track.videoId === song.videoId)) return;
+    setManualTracks((tracks) => [...tracks, song]);
+    setManualResults((results) => results.filter((result) => result.videoId !== song.videoId));
+  };
+
+  const removeManualTrack = (videoId: string | null) => {
+    setManualTracks((tracks) => tracks.filter((track) => track.videoId !== videoId));
+  };
+
+  const saveManualPlaylist = () => {
+    if (!manualName.trim()) return setError("Playlist adı yazmalısın.");
+    if (manualTracks.length === 0) return setError("En az bir şarkı eklemelisin.");
+    const tracks = manualTracks.filter((song): song is Song & { videoId: string } => Boolean(song.videoId)).map((song) => ({
+      videoId: song.videoId,
+      title: song.title,
+      artist: song.artist,
+      thumbnail: song.thumbnail || undefined,
+    }));
+    savePlaylist(manualName.trim(), manualDescription.trim() || "Kendi oluşturduğun playlist", tracks);
+    setQueueAndPlay(tracks);
+  };
 
   const handleListen = () => {
     if (!playlist || foundSongs.length === 0) return;
@@ -217,7 +276,7 @@ export default function PlaylistPage() {
             </div>
             <h1 style={{ fontSize: "2rem", fontWeight: 800, background: "linear-gradient(135deg, #8b5cf6, #ec4899)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: 0 }}>AI Playlist</h1>
           </div>
-          <p className="subtitle" style={{ margin: 0, textAlign: "left" }}>Ne dinlemek istediğini söyle, Gemini sana özel liste hazırlasın.</p>
+          <p className="subtitle" style={{ margin: 0, textAlign: "left" }}>İstersen yapay zekaya oluştur, istersen şarkılarını kendin seç.</p>
         </div>
         
         <Link href="/music" style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem 1rem", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", color: "white", textDecoration: "none", fontWeight: 600, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>
@@ -228,7 +287,12 @@ export default function PlaylistPage() {
         </Link>
       </div>
 
-      <div className="glass-panel" style={{ width: "100%", display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <div style={{ width: "100%", display: "flex", gap: "0.5rem" }}>
+        <button onClick={() => setCreationMode("ai")} className="btn" style={{ flex: 1, padding: "0.75rem", background: creationMode === "ai" ? "linear-gradient(135deg, #8b5cf6, #ec4899)" : "rgba(255,255,255,0.06)" }}>AI ile Oluştur</button>
+        <button onClick={() => setCreationMode("manual")} className="btn" style={{ flex: 1, padding: "0.75rem", background: creationMode === "manual" ? "linear-gradient(135deg, #06b6d4, #8b5cf6)" : "rgba(255,255,255,0.06)" }}>Kendin Oluştur</button>
+      </div>
+
+      {creationMode === "ai" ? <div className="glass-panel" style={{ width: "100%", display: "flex", flexDirection: "column", gap: "1rem" }}>
         <textarea value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Ne dinlemek istiyorsun? Örn: hüzünlü Türkçe şarkılar, egzersiz müziği..." rows={3} disabled={loading}
           style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "10px", color: "white", padding: "0.85rem 1rem", fontSize: "0.95rem", outline: "none", resize: "none", width: "100%", fontFamily: "inherit", lineHeight: "1.5", opacity: loading ? 0.6 : 1 }}
           onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !loading) { e.preventDefault(); handleGenerate(); } }} />
@@ -238,7 +302,30 @@ export default function PlaylistPage() {
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={spin}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Oluşturuluyor...
           </span> : "Playlist Oluştur"}
         </button>
-      </div>
+      </div> : <div className="glass-panel" style={{ width: "100%", display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <input value={manualName} onChange={(event) => setManualName(event.target.value)} placeholder="Playlist adı" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "10px", color: "white", padding: "0.85rem 1rem", outline: "none" }} />
+        <input value={manualDescription} onChange={(event) => setManualDescription(event.target.value)} placeholder="Açıklama (isteğe bağlı)" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "10px", color: "white", padding: "0.85rem 1rem", outline: "none" }} />
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <input value={manualQuery} onChange={(event) => setManualQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void handleManualSearch(); }} placeholder="Şarkı veya sanatçı ara..." style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "10px", color: "white", padding: "0.85rem 1rem", outline: "none" }} />
+          <button onClick={() => void handleManualSearch()} disabled={manualSearching || !manualQuery.trim()} className="btn" style={{ padding: "0 1.1rem", background: "rgba(255,255,255,0.12)" }}>{manualSearching ? "Aranıyor..." : "Ara"}</button>
+        </div>
+        {manualResults.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          {manualResults.map((song) => <div key={song.videoId} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.6rem", background: "rgba(255,255,255,0.04)", borderRadius: "9px" }}>
+            {song.thumbnail && <img src={song.thumbnail} alt={song.title} style={{ width: "52px", height: "38px", objectFit: "cover", borderRadius: "6px" }} />}
+            <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{song.title}</div><div style={{ opacity: 0.55, fontSize: "0.78rem" }}>{song.artist}</div></div>
+            <button onClick={() => addManualTrack(song)} className="btn" style={{ padding: "0.45rem 0.75rem", background: "#22c55e" }}>Ekle</button>
+          </div>)}
+        </div>}
+        <div>
+          <div style={{ fontSize: "0.8rem", opacity: 0.55, marginBottom: "0.5rem" }}>Playlistteki şarkılar: {manualTracks.length}</div>
+          {manualTracks.map((song, index) => <div key={song.videoId} style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.45rem 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            <span style={{ opacity: 0.4, width: "20px" }}>{index + 1}</span><span style={{ flex: 1 }}>{song.title} <small style={{ opacity: 0.5 }}>· {song.artist}</small></span>
+            <button onClick={() => void handleDownloadSingle(song, index)} disabled={downloading[index]} style={{ background: "transparent", border: "none", color: "#a78bfa", cursor: "pointer" }}>{downloading[index] ? "..." : "MP3"}</button>
+            <button onClick={() => removeManualTrack(song.videoId)} style={{ background: "transparent", border: "none", color: "#f87171", cursor: "pointer" }}>×</button>
+          </div>)}
+        </div>
+        <button onClick={saveManualPlaylist} className="btn" style={{ padding: "0.9rem", background: "linear-gradient(135deg, #06b6d4, #8b5cf6)" }}>Kütüphaneye Kaydet ve Dinle</button>
+      </div>}
 
       <div style={{ width: "100%" }}>
         <p style={{ fontSize: "0.78rem", fontWeight: 600, opacity: 0.5, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.6rem" }}>Hızlı Seçimler</p>
