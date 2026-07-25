@@ -1,58 +1,66 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRoom, joinRoom, leaveRoom, updateRoom } from "@/lib/listeningRooms";
 
-// No auth required – user identity comes from a client-generated anonymous userId
-// sent as the X-Savio-User header (a random uuid stored in localStorage on the client).
-
-function getUserId(request: NextRequest) {
-  return request.headers.get("x-savio-user") || "anonymous";
+function uid(req: NextRequest) {
+  return req.headers.get("x-savio-user") || "anonymous";
 }
 
-export async function POST(request: NextRequest) {
-  const userId = getUserId(request);
-  const body = await request.json();
+export async function POST(req: NextRequest) {
+  const userId = uid(req);
+  const body = await req.json();
 
-  // Join existing room
-  if (body.roomId) {
-    const room = joinRoom(body.roomId, userId);
+  // JOIN existing room by 4-digit code
+  if (body.action === "join") {
+    const code = String(body.code ?? "").trim();
+    if (!code) return NextResponse.json({ error: "Kod gerekli" }, { status: 400 });
+    const room = joinRoom(code, userId);
     return room
       ? NextResponse.json(room)
-      : NextResponse.json({ error: "Oda bulunamadı" }, { status: 404 });
+      : NextResponse.json({ error: "Oda bulunamadı. Kodu kontrol edin." }, { status: 404 });
   }
 
-  // Create new room
-  if (!body.playlist?.name || !Array.isArray(body.playlist.tracks)) {
-    return NextResponse.json({ error: "Geçerli bir playlist gerekli" }, { status: 400 });
+  // CREATE new room
+  if (body.action === "create") {
+    if (!body.playlist?.name || !Array.isArray(body.playlist.tracks)) {
+      return NextResponse.json({ error: "Geçerli playlist gerekli" }, { status: 400 });
+    }
+    const playlist = {
+      id: body.playlist.id ?? Date.now().toString(),
+      name: body.playlist.name,
+      tracks: body.playlist.tracks,
+    };
+    return NextResponse.json(createRoom(userId, playlist));
   }
 
-  const playlist = {
-    id: body.playlist.id || Date.now().toString(),
-    name: body.playlist.name,
-    tracks: body.playlist.tracks,
-  };
-  return NextResponse.json(createRoom(userId, playlist));
+  return NextResponse.json({ error: "Geçersiz action" }, { status: 400 });
 }
 
-export async function GET(request: NextRequest) {
-  const userId = getUserId(request);
-  const id = new URL(request.url).searchParams.get("roomId");
-  const room = id ? joinRoom(id, userId) : null;
+// Poll for current room state
+export async function GET(req: NextRequest) {
+  const userId = uid(req);
+  const code = new URL(req.url).searchParams.get("code") ?? "";
+  if (!code) return NextResponse.json({ error: "Kod gerekli" }, { status: 400 });
+  const room = joinRoom(code, userId); // joinRoom is idempotent
   return room
     ? NextResponse.json(room)
     : NextResponse.json({ error: "Oda bulunamadı" }, { status: 404 });
 }
 
-export async function PATCH(request: NextRequest) {
-  const userId = getUserId(request);
-  const body = await request.json();
-  const room = updateRoom(body.roomId, userId, body.update);
+// Update room (any participant can update track/play state; all can add songs)
+export async function PATCH(req: NextRequest) {
+  const userId = uid(req);
+  const body = await req.json();
+  const code = String(body.code ?? "").trim();
+  const room = updateRoom(code, userId, body.update ?? {});
   return room
     ? NextResponse.json(room)
     : NextResponse.json({ error: "Odaya erişilemiyor" }, { status: 404 });
 }
 
-export async function DELETE(request: NextRequest) {
-  const userId = getUserId(request);
-  leaveRoom(new URL(request.url).searchParams.get("roomId") || "", userId);
+// Leave room
+export async function DELETE(req: NextRequest) {
+  const userId = uid(req);
+  const code = new URL(req.url).searchParams.get("code") ?? "";
+  leaveRoom(code, userId);
   return NextResponse.json({ ok: true });
 }
