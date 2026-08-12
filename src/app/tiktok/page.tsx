@@ -24,54 +24,82 @@ export default function TikTokPage() {
     setLoading(true);
     setError("");
     setResult(null);
+
+    const targetUrl = url.trim();
+
     try {
+      // 1. Birincil: Hızlı, doğrudan Next.js /api/download rotasını dene (TikWM + video ID ayrıştırıcı)
+      const localRes = await fetch("/api/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: targetUrl }),
+      });
+      const localData = await localRes.json();
+
+      if (localRes.ok && (localData.play || localData.images || localData.music)) {
+        setResult({
+          author: localData.author || "TikTok Kullanıcısı",
+          title: localData.title || "TikTok Gönderisi",
+          cover: localData.cover || "",
+          play: localData.play || "",
+          music: localData.music || "",
+          images: localData.images || null,
+          rawData: localData,
+        });
+        return;
+      }
+
+      // 2. İkincil / Yedek: Render backend servisini dene
       const renderApiUrl = process.env.NEXT_PUBLIC_RENDER_API_URL || "https://solebz.onrender.com";
       const renderApiKey = process.env.NEXT_PUBLIC_RENDER_API_KEY || "solebz_benimsifrem_123";
 
-      // 1. İndirme isteğini başlat (Job ID al)
       const res = await fetch(`${renderApiUrl}/api/v1/download`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
           "x-api-key": renderApiKey
         },
-        body: JSON.stringify({ url, mode: "video" }),
+        body: JSON.stringify({ url: targetUrl, mode: "video" }),
       });
       const initData = await res.json();
       
-      if (!res.ok) throw new Error(initData.error || "İndirme başlatılamadı");
-      if (!initData.job_id) throw new Error("Job ID alınamadı.");
+      if (!res.ok) throw new Error(localData.error || initData.error || "İndirme başlatılamadı.");
+      if (!initData.job_id) throw new Error(localData.error || "Video indirilemedi.");
 
       const jobId = initData.job_id;
       
-      // 2. İşlemi Poll et (Durumu kontrol et)
       let isCompleted = false;
-      while (!isCompleted) {
+      let attempts = 0;
+      while (!isCompleted && attempts < 15) {
+        attempts++;
         const statusRes = await fetch(`${renderApiUrl}/api/v1/status/${jobId}`, {
           headers: { "x-api-key": renderApiKey }
         });
         const statusData = await statusRes.json();
         
         if (statusData.status === "error" || statusData.status === "failed") {
-          throw new Error(statusData.error || "İndirme sırasında hata oluştu.");
+          throw new Error(localData.error || statusData.error || "İndirme sırasında bir hata oluştu.");
         }
         
         if (statusData.status === "completed") {
           isCompleted = true;
-          // İşlem bitti! UI formatına uygun set ediyoruz.
           setResult({
-            author: statusData.author || "TikTok Videosu",
+            author: statusData.author || "TikTok Kullanıcısı",
             title: statusData.title || "İndirme Tamamlandı",
             cover: statusData.cover || "",
             play: statusData.url || statusData.result_url || "#", 
             rawData: statusData
           });
         } else {
-          await new Promise(r => setTimeout(r, 3000));
+          await new Promise(r => setTimeout(r, 2000));
         }
       }
+
+      if (!isCompleted) {
+        throw new Error(localData.error || "İndirme zaman aşımına uğradı, lütfen tekrar deneyin.");
+      }
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Video indirilemedi. Lütfen bağlantıyı kontrol edin.");
     } finally {
       setLoading(false);
     }
