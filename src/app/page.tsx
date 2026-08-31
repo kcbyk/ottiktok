@@ -52,6 +52,15 @@ const platforms = [
     badge: "En Popüler",
   },
   {
+    name: "YouTube",
+    desc: "Video, Shorts ve MP3 müzik indirme",
+    href: "/youtube",
+    bg: "linear-gradient(135deg, #FF0000 0%, #7a0000 100%)",
+    accent: "#FF0000",
+    shadow: "rgba(255,0,0,0.25)",
+    icon: <YIcon />,
+  },
+  {
     name: "Instagram",
     desc: "Reels, hikaye ve çoklu gönderi indirme",
     href: "/instagram",
@@ -152,7 +161,7 @@ const tools = [
 ];
 
 const stats = [
-  { value: "4+", label: "Platform" },
+  { value: "5+", label: "Platform" },
   { value: "10+", label: "Araç" },
   { value: "Ücretsiz", label: "Tamamen" },
   { value: "Reklamsız", label: "Temiz Deneyim" },

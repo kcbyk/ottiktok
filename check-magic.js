@@ -1,7 +1,7 @@
 const https = require('https');
 
-https.get('https://solebz.onrender.com/api/v1/file/20829a5a324b48d19d757d395b410f74', {
-  headers: { "x-api-key": "solebz_benimsifrem_123" }
+https.get('https://mp3-apisi.onrender.com/api/v1/file/20829a5a324b48d19d757d395b410f74', {
+  headers: { "x-api-key": "sk-71c69f4de1f4b912957fed45" }
 }, (res) => {
   res.on('data', (chunk) => {
     const hex = chunk.slice(0, 16).toString('hex');

@@ -64,6 +64,15 @@ export default function Sidebar() {
       icon: <TIcon size={20} />
     },
     {
+      name: "YouTube İndirici",
+      desc: "Video, Shorts ve MP3",
+      href: "/youtube",
+      color: "#FF0000",
+      border: "none",
+      shadow: "rgba(255,0,0,0.25)",
+      icon: <YTIcon size={20} />
+    },
+    {
       name: "Instagram İndirici",
       desc: "Reels ve fotoğraflar",
       href: "/instagram",

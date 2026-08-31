@@ -1,9 +1,9 @@
 async function runFullTest() {
   console.log("Starting new test...");
   const url = "https://www.youtube.com/watch?v=jNQXAC9IVRw";
-  const res = await fetch("https://solebz.onrender.com/api/v1/download", {
+  const res = await fetch("https://mp3-apisi.onrender.com/api/v1/download", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": "solebz_benimsifrem_123" },
+    headers: { "Content-Type": "application/json", "x-api-key": "sk-71c69f4de1f4b912957fed45" },
     body: JSON.stringify({ url: url, mode: "video" }),
   });
   const initData = await res.json();
@@ -11,8 +11,8 @@ async function runFullTest() {
   console.log("Job ID:", jobId);
   
   while(true) {
-    const statusRes = await fetch(`https://solebz.onrender.com/api/v1/status/${jobId}`, {
-      headers: { "x-api-key": "solebz_benimsifrem_123" }
+    const statusRes = await fetch(`https://mp3-apisi.onrender.com/api/v1/status/${jobId}`, {
+      headers: { "x-api-key": "sk-71c69f4de1f4b912957fed45" }
     });
     const data = await statusRes.json();
     console.log(`Status: ${data.status}, Progress: ${data.progress}`);
