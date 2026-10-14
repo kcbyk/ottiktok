@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { extractTikTokUrl } from "@/lib/tiktok";
 
 /* ── TikTok İkonu ── */
 function TIcon({ size = 22 }: { size?: number }) {
@@ -25,7 +26,17 @@ export default function TikTokPage() {
     setError("");
     setResult(null);
 
-    const targetUrl = url.trim();
+    // Yapıştırılan şey çoğu zaman saf link olmaz: uygulamanın paylaşım
+    // metni, şemasız link (www.tt.site/t/...) vb. olabilir. İçindeki
+    // TikTok/Douyin linkini çıkar; kabul edilen domain'ler
+    // src/lib/tiktok.ts içindeki TIKTOK_ROOT_DOMAINS listesinde.
+    const targetUrl = extractTikTokUrl(url);
+    if (!targetUrl) {
+      setError("Lütfen geçerli bir TikTok linki yapıştırın.");
+      setLoading(false);
+      return;
+    }
+    setUrl(targetUrl);
 
     try {
       // 1. Birincil: Hızlı, doğrudan Next.js /api/download rotasını dene (TikWM + video ID ayrıştırıcı)
@@ -108,7 +119,9 @@ export default function TikTokPage() {
   const handlePaste = async () => {
     try {
       const text = await navigator.clipboard.readText();
-      setUrl(text);
+      // Panodaki paylaşım metninin içinden sadece linki al
+      setUrl(extractTikTokUrl(text) || text.trim());
+      setError("");
     } catch (err) {
       console.error("Panoya erişilemedi");
     }

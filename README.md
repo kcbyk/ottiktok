@@ -12,6 +12,7 @@ Modern, reklamsız ve çok işlevli bir web uygulaması. Next.js (App Router) il
   - Filigransız MP4 video indirme
   - Fotoğraf slayt (carousel) desteği — ızgara görünümü + toplu indirme
   - Ses indirme (MP3)
+  - Desteklenen link domain'leri (`src/lib/tiktok.ts` → `TIKTOK_ROOT_DOMAINS`, alt domain'leriyle birlikte): `tiktok.com` (www / m / vt / vm / lite / `/t/` kısa formatı), `tt.site` (uygulamanın yeni paylaşım domain'i), `douyin.com`, `iesdouyin.com`, `amemv.com`, `snssdk.com`, `musical.ly`, `tiktokv.com`. Kısa linkler TikWM'e gönderilmeden önce sunucuda çözülüp kanonik `tiktok.com/@…/video/<id>` linkine çevrilir; paylaşım metninin içindeki link de otomatik bulunur.
 
 - **YouTube İndirici**
   - Video ve Shorts indirme (144p – 2160p)

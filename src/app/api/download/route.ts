@@ -1,6 +1,28 @@
 import { NextResponse } from 'next/server';
+import {
+  extractTikTokUrl,
+  extractTikTokVideoId,
+  isShortTikTokLink,
+  isTikTokUrl,
+  resolveTikTokUrl,
+  canonicalTikTokUrl,
+} from '@/lib/tiktok';
 
-async function fetchTikTokFromTikWM(targetUrl: string) {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+interface TikWMVideoData {
+  author?: { nickname?: string; unique_id?: string };
+  title?: string;
+  cover?: string;
+  origin_cover?: string;
+  play?: string;
+  wmplay?: string;
+  music?: string;
+  music_info?: { play?: string };
+  images?: string[];
+}
+
+async function fetchTikTokFromTikWM(targetUrl: string, attempt = 0): Promise<TikWMVideoData | null> {
   try {
     const response = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(targetUrl)}`, {
       method: 'GET',
@@ -8,11 +30,18 @@ async function fetchTikTokFromTikWM(targetUrl: string) {
         'Accept': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       },
-      cache: 'no-store'
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10000),
     });
     const data = await response.json();
     if (data && data.code === 0 && data.data) {
-      return data.data;
+      return data.data as TikWMVideoData;
+    }
+    // TikWM ücretsiz limiti: 1 istek/sn. Ardışık denemelerde limite takılırsak
+    // tek seferlik bekleyip yeniden dene, yoksa çalışan link "bulunamadı" sanılır.
+    if (attempt === 0 && typeof data?.msg === 'string' && /limit/i.test(data.msg)) {
+      await sleep(1200);
+      return fetchTikTokFromTikWM(targetUrl, 1);
     }
   } catch (err) {
     console.warn('TikWM fetch error:', err);
@@ -29,48 +58,52 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Lütfen geçerli bir TikTok linki girin.' }, { status: 400 });
     }
 
-    const trimmedUrl = rawUrl.trim();
-
-    // Check if input contains tiktok, douyin, or video ID pattern
-    const isTikTok = trimmedUrl.includes('tiktok.com') || trimmedUrl.includes('douyin.com') || /\d{17,19}/.test(trimmedUrl);
-    if (!isTikTok) {
+    // Kullanıcı çoğu zaman saf link değil, uygulamanın paylaşım metnini
+    // ("Şuna bak: https://...") ya da şemasız linki yapıştırır → içinden çıkar.
+    // Kabul edilen TÜM domain'ler: src/lib/tiktok.ts → TIKTOK_ROOT_DOMAINS
+    // (tiktok.com, tt.site, douyin.com, iesdouyin.com, musical.ly,
+    //  amemv.com, snssdk.com, tiktokv.com + tüm alt domain'leri)
+    const extractedUrl = extractTikTokUrl(rawUrl);
+    if (!extractedUrl || !isTikTokUrl(extractedUrl)) {
       return NextResponse.json({ error: 'Lütfen geçerli bir TikTok linki yapıştırın.' }, { status: 400 });
     }
 
-    let videoData = null;
+    let videoData: TikWMVideoData | null = null;
 
-    // Step 1: Direct TikWM lookup with provided URL
-    videoData = await fetchTikTokFromTikWM(trimmedUrl);
+    // ── 1. Adım: Kısa linkse ÖNCE yönlendirmeyi çöz ──────────────────────
+    // KRİTİK: TikWM, tt.site (ve benzeri yeni kısa domain'leri) doğrudan
+    // kabul etmiyor ("Url parsing is failed!"). Eski kod TikWM'i önce
+    // denediği ve çözümlemeyi sadece vt/vm için yaptığı için tt.site
+    // linkleri daha doğrulama aşamasında eleniyordu.
+    let resolvedUrl = extractedUrl;
+    if (isShortTikTokLink(extractedUrl)) {
+      const resolved = await resolveTikTokUrl(extractedUrl);
+      if (resolved) resolvedUrl = resolved;
+    }
 
-    // Step 2: If raw fetch failed, resolve short link or clean video URL
-    if (!videoData) {
-      let resolvedUrl = trimmedUrl;
-      if (trimmedUrl.includes('vt.tiktok.com') || trimmedUrl.includes('vm.tiktok.com') || trimmedUrl.includes('/v/')) {
-        try {
-          const redRes = await fetch(trimmedUrl, {
-            redirect: 'follow',
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-          });
-          resolvedUrl = redRes.url || trimmedUrl;
-        } catch (e) {
-          console.warn('Redirect resolution error:', e);
-        }
-      }
+    const videoId =
+      extractTikTokVideoId(resolvedUrl) || extractTikTokVideoId(extractedUrl);
 
-      // Extract 17-19 digit video ID
-      const idMatch = resolvedUrl.match(/video\/(\d+)/) || resolvedUrl.match(/\/v\/(\d+)/) || resolvedUrl.match(/(\d{17,19})/);
-      const videoId = idMatch ? idMatch[1] : null;
+    // ── 2. Adım: TikWM'e denenecek adayları sıraya koy ───────────────────
+    // En güvenilirden başlayarak: çözülmüş kanonik link → ID'den üretilen
+    // kanonik link → (TikWM'in tanıdığı bir domain'deyse) orijinal link.
+    const candidates: string[] = [];
+    const addCandidate = (u?: string | null) => {
+      if (u && !candidates.includes(u)) candidates.push(u);
+    };
 
-      if (videoId) {
-        const cleanUrl = `https://www.tiktok.com/@a/video/${videoId}`;
-        videoData = await fetchTikTokFromTikWM(cleanUrl);
-      }
+    if (videoId || !isShortTikTokLink(resolvedUrl)) addCandidate(resolvedUrl);
+    if (videoId) addCandidate(canonicalTikTokUrl(videoId, resolvedUrl));
+    // TikWM; tt.site / musical.ly gibi domain'leri tanımıyor, onları aday
+    // yapıp boşuna limit yakma. Onlarda çözümleme zaten yukarıda yapıldı.
+    if (/\.(tiktok\.com|douyin\.com|iesdouyin\.com|tiktokv\.com)$/i.test(new URL(extractedUrl).hostname)) {
+      addCandidate(extractedUrl);
+    }
+    if (candidates.length === 0) addCandidate(resolvedUrl);
 
-      if (!videoData && resolvedUrl !== trimmedUrl) {
-        videoData = await fetchTikTokFromTikWM(resolvedUrl);
-      }
+    for (const candidate of candidates) {
+      videoData = await fetchTikTokFromTikWM(candidate);
+      if (videoData) break;
     }
 
     if (!videoData) {
@@ -91,9 +124,8 @@ export async function POST(request: Request) {
     };
 
     return NextResponse.json(formattedData);
-  } catch (error: any) {
+  } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json({ error: 'Sunucu hatası oluştu, lütfen tekrar deneyin.' }, { status: 500 });
   }
 }
-
