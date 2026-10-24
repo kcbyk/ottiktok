@@ -118,6 +118,25 @@ Tarayıcıda `http://localhost:3000` adresi.
 
 ---
 
+## İndirme API Araştırması (2026-10-24) 🔬
+
+Mevcut YouTube servisinin (`mp3-apisi`) **MP3 tarafı çalışıyor, MP4/video tarafı kırık**
+(üçüncü parti link motoru reklam HTML'i döndürüyor). Yeni/"korumasız" indirme
+API'leri canlı olarak test edildi; bulgular, çalışan/çalışmayan servisler, yeni GitHub
+projeleri ve **zararlı yazılım uyarısı** şurada:
+
+- 📄 **[docs/indirme-api-arastirma.md](docs/indirme-api-arastirma.md)** — test sonuçları, karşılaştırma tablosu, tavsiye edilen mimari.
+- 🧪 **`node scripts/test-download-apis.mjs`** — tüm adayları canlı test eden araç (kendi ağında çalıştır).
+- 🚀 **[render.yaml](render.yaml)** — kendi Cobalt v11 instance'ını kurmak için Render Blueprint.
+
+**Hızlı çözüm:** `render.yaml` ile kendi Cobalt instance'ını kur, ardından `.env.local`'e
+`COBALT_API_URL` (ve opsiyonel `COBALT_API_KEY`) ekle. `/api/youtube` rotası, RapidAPI
+anahtarları tükendiğinde otomatik olarak bu instance'a düşer. Hiçbir topluluk
+instance'ı kaynak koda sabitlenmemiştir.
+
+> ⚠️ Repoda kaynak koda gömülü API anahtarları (`sk-…`, RapidAPI `f890c1…`) herkese
+> açık olduğu için sızmış kabul edilmeli, rotate edilip ortam değişkenlerine taşınmalıdır.
+
 ## Yasal Uyarı ⚠️
 
 Bu uygulama yalnızca eğitim ve kişisel araştırma amacıyla geliştirilmiştir. İndirilen içeriklerin telif hakları ilgili içerik üreticilerine aittir. Bu aracın kullanımından doğabilecek her türlü hukuki sorumluluk kullanıcıya aittir.

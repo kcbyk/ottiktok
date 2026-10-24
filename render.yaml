@@ -1,0 +1,74 @@
+# Render Blueprint — kendi Cobalt v11 indirme API'ni kur.
+#
+# Kullanım:
+#   Render Dashboard → New → Blueprint → bu repoyu bağla.
+#   `rnd_…` Render API anahtarını YALNIZCA Render arayüzünde kullan;
+#   bu dosyaya / kaynak koda asla yazma.
+#
+# Ardından OttiTok tarafında (Vercel / .env.local):
+#   COBALT_API_URL=https://ottiktok-cobalt.onrender.com
+#   COBALT_API_KEY=<aşağıda tanımlarsan ürettiğin UUIDv4>
+#
+# Detaylar: docs/indirme-api-arastirma.md
+
+services:
+  - type: web
+    name: ottiktok-cobalt
+    runtime: image
+    plan: starter            # free plan soğuk başlatma + YouTube IP bloklarına açık; starter önerilir
+    region: frankfurt        # TR'ye en yakın
+    image:
+      url: ghcr.io/imputnet/cobalt:11
+    healthCheckPath: /
+    envVars:
+      # Cobalt tünel/redirect URL'lerini bununla üretir — KENDİ Render URL'ini gir.
+      - key: API_URL
+        sync: false          # Blueprint kurulumunda sorulur: https://ottiktok-cobalt.onrender.com
+
+      # Render konteynerleri PORT=10000 bekler; Cobalt varsayılan 9000 kullanır.
+      - key: API_PORT
+        value: "10000"
+      - key: API_LISTEN_ADDRESS
+        value: "0.0.0.0"
+
+      # ── KORUMASIZ mod (anahtarsız) ──
+      # Aşağıdaki üç satır yorumda bırakılırsa instance herkese açık çalışır.
+      # Üretimde açmana şiddetle tavsiye edilir: API_AUTH_REQUIRED=1 + API key dosyası.
+      # - key: API_AUTH_REQUIRED
+      #   value: "1"
+      # - key: API_KEY_URL
+      #   value: "file://keys.json"   # Render "Secret File" olarak yükle
+
+      # Turnstile bot koruması (opsiyonel, ücretsiz Cloudflare hesabı ister).
+      # Üçü BİRLİKTE verilmezse aktif olmaz.
+      # - key: TURNSTILE_SITEKEY
+      #   sync: false
+      # - key: TURNSTILE_SECRET
+      #   sync: false
+      # - key: JWT_SECRET
+      #   sync: false
+
+      # ── YouTube iyileştirmeleri ──
+      # PO token / visitor_data için yt-session-generator (ayrı servis gerekir).
+      # - key: YOUTUBE_SESSION_SERVER
+      #   value: "http://localhost:8080/"
+      - key: YOUTUBE_ALLOW_BETTER_AUDIO
+        value: "1"
+
+      # ── Kaynak koruma (Render starter: 512MB RAM / sınırlı CPU) ──
+      - key: DURATION_LIMIT
+        value: "3600"        # en fazla 60 dk video
+      - key: RATELIMIT_WINDOW
+        value: "60"
+      - key: RATELIMIT_MAX
+        value: "20"          # IP başına 20 istek / dk
+      - key: TUNNEL_LIFESPAN
+        value: "90"
+      - key: TUNNEL_RATELIMIT_MAX
+        value: "40"
+      - key: CORS_WILDCARD
+        value: "1"           # OttiTok farklı domain'den çağıracak
+
+# Not: resmî compose örneğindeki "watchtower" Render'da çalışmaz — Render
+# image etiketini (ghcr.io/imputnet/cobalt:11) izleyip yeniden deploy eder.
+# Güncel sürüm takibi için Render Dashboard → Settings → auto-deploy açık kalsın.
